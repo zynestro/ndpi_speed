@@ -1,0 +1,45 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.vscode/*.log
+
+# Python / shell temp
+__pycache__/
+*.pyc
+*.swp
+*.swo
+*~
+
+# C/C++ build artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# CMake generated files (any level)
+**/build/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/Makefile
+**/compile_commands.json
+**/CTestTestfile.cmake
+**/Testing/
+
+# Benchmark/runtime outputs
+output/
+mark1/benchmark_results/
+
+# Local data dumps
+input/
+
+# Archive binaries
+archive/ssh_detector/ssh_detector
+
+binary/
