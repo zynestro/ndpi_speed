@@ -1,0 +1,1 @@
+./build/ndpiBenchmark -i test.pcap -n 32
