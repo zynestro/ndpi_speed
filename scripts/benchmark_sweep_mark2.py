@@ -4,6 +4,9 @@ mark2 Benchmark 扫描脚本
 - 单基线版本（ndpiBenchmarkMark2）
 - 默认 reader 绑核 -r 0
 - 默认 worker 顺序绑核 -c 1..N
+  说明：
+  - 单次 benchmark 运行会同时启动 N 个 worker，并分别固定绑定到 N 个核（不是单 worker 轮流跑多核）
+  - sweep 是按 workers 配置逐次运行（例如先 1，再 2，再 3...），每次重启一个新进程
 """
 
 import argparse
@@ -26,10 +29,13 @@ except ImportError:
 
 
 def get_worker_cores(n: int) -> str:
+    # 对于 workers=n，生成 "1,2,...,n"。
+    # 这表示一次运行内的 N 个 worker 分别绑定到这些核。
     return ",".join(str(i) for i in range(1, n + 1))
 
 
 def build_benchmark_cmd(binary_path: str, pcap_file: str, num_workers: int, quiet: bool = True) -> list[str]:
+    # 单次运行命令：-n 指定 worker 数，-c 指定每个 worker 的目标 core 列表。
     cmd = [
         binary_path,
         "-i", pcap_file,
@@ -138,6 +144,7 @@ def run_sweep(binary_path: str, pcap_file: str, worker_range, output_dir: str) -
     print(f"{'='*60}\n")
 
     for i, workers in enumerate(worker_range, start=1):
+        # 这里是 sweep 的“跨运行遍历”：每个 workers 值会独立运行一次 benchmark 进程。
         print(f"[{i}/{total_tests}] Testing: workers={workers}...", end=" ", flush=True)
         metrics = run_benchmark(binary_path, pcap_file, workers)
         if not metrics:
@@ -393,4 +400,3 @@ Examples:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
