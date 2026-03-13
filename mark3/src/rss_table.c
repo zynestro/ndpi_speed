@@ -104,6 +104,20 @@ static uint32_t rss_select_worker_random(rss_table_t *rt, uint32_t num_workers) 
   return r % num_workers;
 }
 
+static uint32_t rss_select_worker_p2c(const reader_context_t *ctx, uint64_t key) {
+  if (!ctx || ctx->num_workers <= 1) return 0;
+
+  uint32_t h1 = (uint32_t)key;
+  uint32_t h2 = rss_mix32((uint32_t)(key >> 32) ^ 0x9e3779b9U);
+  uint32_t w0 = h1 % ctx->num_workers;
+  uint32_t w1 = h2 % ctx->num_workers;
+  if (w0 == w1) return w0;
+
+  uint32_t d0 = packet_queue_depth(ctx->workers[w0].queue);
+  uint32_t d1 = packet_queue_depth(ctx->workers[w1].queue);
+  return (d0 <= d1) ? w0 : w1;
+}
+
 uint32_t rss_table_lookup_or_assign(rss_table_t *rt,
                                     const reader_context_t *ctx,
                                     uint64_t key,
@@ -127,7 +141,7 @@ uint32_t rss_table_lookup_or_assign(rss_table_t *rt,
     if (s->state == RSS_EMPTY) {
       size_t ins = (first_deleted != (size_t)-1) ? first_deleted : idx;
       rss_slot_t *dst = &rt->slots[ins];
-      uint32_t wid = rss_select_worker_random(rt, ctx->num_workers);
+      uint32_t wid = rss_select_worker_p2c(ctx, key);
 
       dst->state = RSS_USED;
       dst->key = key;
@@ -146,7 +160,63 @@ uint32_t rss_table_lookup_or_assign(rss_table_t *rt,
       if (first_deleted == (size_t)-1) first_deleted = idx;
     } else if (s->key == key) {
       if (ts_ms > s->last_seen_ms && (ts_ms - s->last_seen_ms) > RSS_FLOW_TIMEOUT_MS) {
-        s->worker_id = rss_select_worker_random(rt, ctx->num_workers);
+        s->worker_id = rss_select_worker_p2c(ctx, key);
+      }
+      s->last_seen_ms = ts_ms;
+      out = s->worker_id;
+      break;
+    }
+
+    idx = (idx + 1) & mask;
+  }
+
+  pthread_mutex_unlock(&rt->lock);
+  return out;
+}
+
+uint32_t rss_table_lookup_or_assign_target(rss_table_t *rt,
+                                           uint32_t num_targets,
+                                           uint64_t key,
+                                           uint64_t ts_ms) {
+  if (!rt || num_targets == 0) return 0;
+
+  pthread_mutex_lock(&rt->lock);
+
+  if ((rt->used + 1) * 10 >= rt->capacity * 7) {
+    rss_table_rehash(rt, rt->capacity * 2);
+  }
+
+  size_t mask = rt->capacity - 1;
+  size_t idx = (size_t)key & mask;
+  size_t first_deleted = (size_t)-1;
+  uint32_t out = 0;
+
+  while (true) {
+    rss_slot_t *s = &rt->slots[idx];
+
+    if (s->state == RSS_EMPTY) {
+      size_t ins = (first_deleted != (size_t)-1) ? first_deleted : idx;
+      rss_slot_t *dst = &rt->slots[ins];
+      uint32_t wid = rss_select_worker_random(rt, num_targets);
+
+      dst->state = RSS_USED;
+      dst->key = key;
+      dst->worker_id = wid;
+      dst->last_seen_ms = ts_ms;
+
+      rt->size++;
+      if (first_deleted == (size_t)-1) {
+        rt->used++;
+      }
+      out = wid;
+      break;
+    }
+
+    if (s->state == RSS_DELETED) {
+      if (first_deleted == (size_t)-1) first_deleted = idx;
+    } else if (s->key == key) {
+      if (ts_ms > s->last_seen_ms && (ts_ms - s->last_seen_ms) > RSS_FLOW_TIMEOUT_MS) {
+        s->worker_id = rss_select_worker_random(rt, num_targets);
       }
       s->last_seen_ms = ts_ms;
       out = s->worker_id;

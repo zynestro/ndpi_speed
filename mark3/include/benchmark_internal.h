@@ -32,7 +32,8 @@ typedef struct {
   struct rss_table *rss;
   void *packets;
   size_t packet_count;
-  _Atomic size_t next_packet_idx;
+  size_t *dispatcher_offsets; /* [num_dispatchers + 1] */
+  size_t *dispatcher_indices; /* [packet_count], 索引到 packets */
   pthread_mutex_t stats_lock;
   uint64_t read_time_ns;
   uint64_t pcap_read_ns;
@@ -41,6 +42,11 @@ typedef struct {
   uint64_t rss_lookup_ns;
   uint64_t enqueue_ns;
   uint64_t read_other_ns;
+  uint64_t preprocess_ns;
+  uint64_t preprocess_dispatch_rss_ns;
+  uint64_t preprocess_store_ns;
+  uint64_t preprocess_schedule_ns;
+  uint64_t preprocess_other_ns;
 } reader_context_t;
 
 extern pthread_mutex_t g_print_mutex;
@@ -95,6 +101,10 @@ uint32_t rss_table_lookup_or_assign(rss_table_t *rt,
                                     const reader_context_t *ctx,
                                     uint64_t key,
                                     uint64_t ts_ms);
+uint32_t rss_table_lookup_or_assign_target(rss_table_t *rt,
+                                           uint32_t num_targets,
+                                           uint64_t key,
+                                           uint64_t ts_ms);
 
 void *worker_thread_entry(void *arg);
 void *reader_thread_entry(void *arg);

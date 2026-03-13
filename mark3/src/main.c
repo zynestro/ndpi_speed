@@ -2,13 +2,22 @@
 
 void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
                              uint64_t total_cycles, double elapsed_sec,
-                             uint64_t read_time_ns,
-                             uint64_t pcap_read_ns,
-                             uint64_t normalize_ns,
-                             uint64_t hash_ns,
-                             uint64_t rss_lookup_ns,
-                             uint64_t enqueue_ns,
-                             uint64_t read_other_ns) {
+                             uint64_t preprocess_ns,
+                             uint64_t preprocess_pcap_read_ns,
+                             uint64_t preprocess_normalize_ns,
+                             uint64_t preprocess_hash_ns,
+                             uint64_t preprocess_dispatch_rss_ns,
+                             uint64_t preprocess_store_ns,
+                             uint64_t preprocess_schedule_ns,
+                             uint64_t preprocess_other_ns,
+                             uint64_t dispatch_time_ns,
+                             uint64_t dispatch_rss_lookup_ns,
+                             uint64_t dispatch_enqueue_ns,
+                             uint64_t dispatch_other_ns) {
+  double preprocess_sec = (double)preprocess_ns / 1000000000.0;
+  double effective_elapsed_sec = elapsed_sec - preprocess_sec;
+  if (effective_elapsed_sec <= 0.0) effective_elapsed_sec = elapsed_sec;
+
   uint64_t total_packets = 0;
   uint64_t total_bytes = 0;
   uint64_t total_flows = 0;
@@ -49,23 +58,29 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
     total_other_ns += workers[i].other_time_ns;
   }
 
-  double pps = (elapsed_sec > 0.0) ? (double)total_packets / elapsed_sec : 0.0;
-  double gbps = (elapsed_sec > 0.0) ? ((double)total_bytes * 8.0) / elapsed_sec / 1e9 : 0.0;
+  double pps = (effective_elapsed_sec > 0.0) ? (double)total_packets / effective_elapsed_sec : 0.0;
+  double gbps = (effective_elapsed_sec > 0.0) ? ((double)total_bytes * 8.0) / effective_elapsed_sec / 1e9 : 0.0;
   double cycles_per_packet = (total_packets > 0) ? (double)total_cycles / (double)total_packets : 0.0;
 
-  uint64_t read_other_merged_ns = read_other_ns + normalize_ns;
   uint64_t total_flowkey_lookup_ns = total_keybuild_ns + total_flow_lookup_ns;
 
   printf("\n========================================\n");
   printf("Benchmark Results\n");
   printf("========================================\n");
-  printf("Elapsed Time: %.6f seconds\n", elapsed_sec);
-  printf("Read Time: %.6f seconds\n", (double)read_time_ns / 1000000000.0);
-  printf("  Read pcap_next_ex: %.6f seconds\n", (double)pcap_read_ns / 1000000000.0);
-  printf("  Read hash: %.6f seconds\n", (double)hash_ns / 1000000000.0);
-  printf("  Read rss_lookup: %.6f seconds\n", (double)rss_lookup_ns / 1000000000.0);
-  printf("  Read enqueue: %.6f seconds\n", (double)enqueue_ns / 1000000000.0);
-  printf("  Read other: %.6f seconds\n", (double)read_other_merged_ns / 1000000000.0);
+  printf("Total Elapsed Time: %.6f seconds\n", elapsed_sec);
+  printf("Preprocess Time: %.6f seconds\n", preprocess_sec);
+  printf("  Preprocess pcap_next_ex: %.6f seconds\n", (double)preprocess_pcap_read_ns / 1000000000.0);
+  printf("  Preprocess normalize: %.6f seconds\n", (double)preprocess_normalize_ns / 1000000000.0);
+  printf("  Preprocess hash: %.6f seconds\n", (double)preprocess_hash_ns / 1000000000.0);
+  printf("  Preprocess flow->dispatcher map: %.6f seconds\n", (double)preprocess_dispatch_rss_ns / 1000000000.0);
+  printf("  Preprocess packet_store: %.6f seconds\n", (double)preprocess_store_ns / 1000000000.0);
+  printf("  Preprocess schedule_build: %.6f seconds\n", (double)preprocess_schedule_ns / 1000000000.0);
+  printf("  Preprocess other: %.6f seconds\n", (double)preprocess_other_ns / 1000000000.0);
+  printf("Elapsed Time (No Preprocess): %.6f seconds\n", effective_elapsed_sec);
+  printf("Dispatch(Read) Time: %.6f seconds\n", (double)dispatch_time_ns / 1000000000.0);
+  printf("  Dispatch flow->worker map: %.6f seconds\n", (double)dispatch_rss_lookup_ns / 1000000000.0);
+  printf("  Dispatch enqueue: %.6f seconds\n", (double)dispatch_enqueue_ns / 1000000000.0);
+  printf("  Dispatch other: %.6f seconds\n", (double)dispatch_other_ns / 1000000000.0);
   printf("Process Time: %.6f seconds\n", (double)total_process_ns / 1000000000.0);
   printf("  Process parse: %.6f seconds\n", (double)total_parse_ns / 1000000000.0);
   printf("  Process flowkey_lookup: %.6f seconds\n", (double)total_flowkey_lookup_ns / 1000000000.0);
@@ -103,8 +118,8 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
   if (num_workers > 1) {
     printf("\nPer-Worker Statistics:\n");
     for (uint32_t i = 0; i < num_workers; i++) {
-      double w_pps = (elapsed_sec > 0.0) ? (double)workers[i].packets_processed / elapsed_sec : 0.0;
-      double w_gbps = (elapsed_sec > 0.0) ? ((double)workers[i].bytes_processed * 8.0) / elapsed_sec / 1e9 : 0.0;
+      double w_pps = (effective_elapsed_sec > 0.0) ? (double)workers[i].packets_processed / effective_elapsed_sec : 0.0;
+      double w_gbps = (effective_elapsed_sec > 0.0) ? ((double)workers[i].bytes_processed * 8.0) / effective_elapsed_sec / 1e9 : 0.0;
       printf("  Worker %2u [Core %2u]: %.2f Mpps, %.2f Gbps, %lu flows, %.3f s proc "
              "(parse %.3f, flow %.3f, ndpi %.3f)\n",
              i, workers[i].cpu_core,
@@ -116,7 +131,7 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
              (double)workers[i].ndpi_time_ns / 1000000000.0);
     }
 
-    double base_pps = (elapsed_sec > 0.0) ? (double)workers[0].packets_processed / elapsed_sec : 0.0;
+    double base_pps = (effective_elapsed_sec > 0.0) ? (double)workers[0].packets_processed / effective_elapsed_sec : 0.0;
     double scaling = (num_workers > 0 && base_pps > 0.0) ? (pps / num_workers) / base_pps : 0.0;
     printf("\nScaling Efficiency: %.1f%%\n", scaling * 100.0);
   }
@@ -356,7 +371,8 @@ int main(int argc, char **argv) {
       .rss = rss,
       .packets = NULL,
       .packet_count = 0,
-      .next_packet_idx = 0,
+      .dispatcher_offsets = NULL,
+      .dispatcher_indices = NULL,
       .read_time_ns = 0,
       .pcap_read_ns = 0,
       .normalize_ns = 0,
@@ -364,6 +380,11 @@ int main(int argc, char **argv) {
       .rss_lookup_ns = 0,
       .enqueue_ns = 0,
       .read_other_ns = 0,
+      .preprocess_ns = 0,
+      .preprocess_dispatch_rss_ns = 0,
+      .preprocess_store_ns = 0,
+      .preprocess_schedule_ns = 0,
+      .preprocess_other_ns = 0,
   };
 
   pthread_t reader;
@@ -390,10 +411,15 @@ int main(int argc, char **argv) {
 
   printf("[4/4] Done.\n");
   print_benchmark_results(workers, cfg.num_workers, cycles_end - cycles_start, elapsed,
-                          reader_ctx.read_time_ns,
+                          reader_ctx.preprocess_ns,
                           reader_ctx.pcap_read_ns,
                           reader_ctx.normalize_ns,
                           reader_ctx.hash_ns,
+                          reader_ctx.preprocess_dispatch_rss_ns,
+                          reader_ctx.preprocess_store_ns,
+                          reader_ctx.preprocess_schedule_ns,
+                          reader_ctx.preprocess_other_ns,
+                          reader_ctx.read_time_ns,
                           reader_ctx.rss_lookup_ns,
                           reader_ctx.enqueue_ns,
                           reader_ctx.read_other_ns);

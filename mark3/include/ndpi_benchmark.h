@@ -57,6 +57,7 @@ typedef struct {
   _Atomic uint32_t head;      /* 写入位置（单调递增） */
   _Atomic uint32_t tail;      /* 读取位置（单调递增） */
   _Atomic bool finished;      /* 生产者已结束标志 */
+  pthread_mutex_t prod_lock;  /* 多生产者互斥入队 */
 } packet_queue_t;
 
 typedef struct {
@@ -99,6 +100,7 @@ static inline packet_queue_t *packet_queue_create(uint32_t capacity) {
   atomic_init(&q->head, 0);
   atomic_init(&q->tail, 0);
   atomic_init(&q->finished, false);
+  pthread_mutex_init(&q->prod_lock, NULL);
 
   return q;
 }
@@ -106,6 +108,7 @@ static inline packet_queue_t *packet_queue_create(uint32_t capacity) {
 /* 销毁队列 */
 static inline void packet_queue_destroy(packet_queue_t *q) {
   if (!q) return;
+  pthread_mutex_destroy(&q->prod_lock);
   free(q->buffer);
   free(q);
 }
@@ -114,11 +117,17 @@ static inline void packet_queue_destroy(packet_queue_t *q) {
 static inline bool packet_queue_push(packet_queue_t *q,
                                      const uint8_t *data, uint16_t caplen, uint16_t wirelen,
                                      uint64_t timestamp_us) {
+  pthread_mutex_lock(&q->prod_lock);
+
   uint32_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
   uint32_t tail = atomic_load_explicit(&q->tail, memory_order_acquire);
   while ((head - tail) >= q->capacity) {
-    if (atomic_load_explicit(&q->finished, memory_order_relaxed)) return false;
+    if (atomic_load_explicit(&q->finished, memory_order_relaxed)) {
+      pthread_mutex_unlock(&q->prod_lock);
+      return false;
+    }
     packet_queue_pause();
+    head = atomic_load_explicit(&q->head, memory_order_relaxed);
     tail = atomic_load_explicit(&q->tail, memory_order_acquire);
   }
 
@@ -129,6 +138,7 @@ static inline bool packet_queue_push(packet_queue_t *q,
   memcpy(slot->data, data, caplen);
 
   atomic_store_explicit(&q->head, head + 1, memory_order_release);
+  pthread_mutex_unlock(&q->prod_lock);
 
   return true;
 }
@@ -164,16 +174,15 @@ static inline void packet_queue_finish(packet_queue_t *q) {
 
 /* Producer 缓存初始化 */
 static inline void packet_queue_prod_init(packet_queue_t *q, packet_queue_prod_t *p) {
-  p->head = atomic_load_explicit(&q->head, memory_order_relaxed);
+  (void)q;
+  p->head = 0;
   p->pending = 0;
 }
 
 /* Producer 提交未发布的元素 */
 static inline void packet_queue_prod_flush(packet_queue_t *q, packet_queue_prod_t *p) {
-  if (p->pending > 0) {
-    atomic_store_explicit(&q->head, p->head, memory_order_release);
-    p->pending = 0;
-  }
+  (void)q;
+  p->pending = 0;
 }
 
 /* 入队（生产者调用）- 批量提交版本 */
@@ -181,28 +190,8 @@ static inline bool packet_queue_push_cached(packet_queue_t *q,
                                             packet_queue_prod_t *p,
                                             const uint8_t *data, uint16_t caplen,
                                             uint16_t wirelen, uint64_t timestamp_us) {
-  uint32_t tail = atomic_load_explicit(&q->tail, memory_order_acquire);
-  while ((p->head - tail) >= q->capacity) {
-    if (atomic_load_explicit(&q->finished, memory_order_relaxed)) return false;
-    packet_queue_prod_flush(q, p);
-    packet_queue_pause();
-    tail = atomic_load_explicit(&q->tail, memory_order_acquire);
-  }
-
-  queue_packet_t *slot = &q->buffer[p->head & q->mask];
-  slot->timestamp_us = timestamp_us;
-  slot->caplen = caplen;
-  slot->wirelen = wirelen;
-  memcpy(slot->data, data, caplen);
-
-  p->head++;
-  p->pending++;
-  if (p->pending >= QUEUE_COMMIT_BATCH) {
-    atomic_store_explicit(&q->head, p->head, memory_order_release);
-    p->pending = 0;
-  }
-
-  return true;
+  (void)p;
+  return packet_queue_push(q, data, caplen, wirelen, timestamp_us);
 }
 
 /* Parsed view of a packet (Ethernet -> IPv4/IPv6 -> TCP/UDP) */
@@ -323,13 +312,18 @@ void cleanup_worker(worker_context_t *worker);
 
 void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
                              uint64_t total_cycles, double elapsed_sec,
-                             uint64_t read_time_ns,
-                             uint64_t pcap_read_ns,
-                             uint64_t normalize_ns,
-                             uint64_t hash_ns,
-                             uint64_t rss_lookup_ns,
-                             uint64_t enqueue_ns,
-                             uint64_t read_other_ns);
+                             uint64_t preprocess_ns,
+                             uint64_t preprocess_pcap_read_ns,
+                             uint64_t preprocess_normalize_ns,
+                             uint64_t preprocess_hash_ns,
+                             uint64_t preprocess_dispatch_rss_ns,
+                             uint64_t preprocess_store_ns,
+                             uint64_t preprocess_schedule_ns,
+                             uint64_t preprocess_other_ns,
+                             uint64_t dispatch_time_ns,
+                             uint64_t dispatch_rss_lookup_ns,
+                             uint64_t dispatch_enqueue_ns,
+                             uint64_t dispatch_other_ns);
 
 static inline uint64_t rdtsc(void) {
 #ifdef __x86_64__
