@@ -1,0 +1,19 @@
+# Example config for scripts/benchmark_sweep_mark3.py
+
+input: input/seed_10G.pcap
+binary: mark3/build/ndpiBenchmarkMark3
+mode: paired   # paired | cross
+
+# Can be list-of-lists (recommended)
+worker_sets:
+  - [2, 3, 4, 5]
+  - [6, 7, 8, 9]
+
+reader_sets:
+  - [1]
+  - [1, 6]
+
+output: output
+quiet: true
+timeout: 900
+extra_args: ""
