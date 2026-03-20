@@ -2,16 +2,31 @@
 
 input: input/seed_10G.pcap
 binary: mark3/build/ndpiBenchmarkMark3
-mode: paired   # paired | cross
+mode: cross   # paired | cross
+description: "reader固定31，worker遍历物理核（0,2,4,...,30）"
 
 # Can be list-of-lists (recommended)
 worker_sets:
-  - [2, 3, 4, 5]
-  - [6, 7, 8, 9]
+  - [0]
+  - [2]
+  - [4]
+  - [6]
+  - [8]
+  - [10]
+  - [12]
+  - [14]
+  - [16]
+  - [18]
+  - [20]
+  - [22]
+  - [24]
+  - [26]
+  - [28]
+  - [30]
+
 
 reader_sets:
-  - [1]
-  - [1, 6]
+  - [31]
 
 output: output
 quiet: true

@@ -41,3 +41,5 @@ input/
 
 # Archive binaries
 archive/ssh_detector/ssh_detector
+
+sweep3.yaml

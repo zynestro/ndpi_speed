@@ -22,12 +22,22 @@ import os
 import re
 import shlex
 import subprocess
+import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List
 
 MODE_PAIRED = "paired"
 MODE_CROSS = "cross"
+
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    print("Warning: matplotlib not found, will skip plotting")
 
 
 @dataclass
@@ -283,6 +293,15 @@ def parse_metrics(output: str) -> dict:
         "dispatch_enqueue_sec": r"Dispatch enqueue:\s+([\d.]+)\s+seconds",
         "dispatch_other_sec": r"Dispatch other:\s+([\d.]+)\s+seconds",
         "process_time_sec": r"Process Time:\s+([\d.]+)\s+seconds",
+        "proc_parse_sec": r"Process parse:\s+([\d.]+)\s+seconds",
+        "proc_flowkey_lookup_sec": r"Process flowkey_lookup:\s+([\d.]+)\s+seconds",
+        "proc_flow_init_sec": r"Process flow_init:\s+([\d.]+)\s+seconds",
+        "proc_flow_sec": r"Process flow:\s+([\d.]+)\s+seconds",
+        "proc_ndpi_call_sec": r"Process nDPI call:\s+([\d.]+)\s+seconds",
+        "proc_proto_check_sec": r"Process proto_check:\s+([\d.]+)\s+seconds",
+        "proc_ndpi_sec": r"Process nDPI:\s+([\d.]+)\s+seconds",
+        "proc_classified_fastpath_sec": r"Process classified_fastpath:\s+([\d.]+)\s+seconds",
+        "proc_other_sec": r"Process other:\s+([\d.]+)\s+seconds",
         "throughput_mpps": r"Throughput:\s+([\d.]+)\s+Mpps",
         "bandwidth_gbps": r"Bandwidth:\s+([\d.]+)\s+Gbps",
         "cycles_per_pkt": r"Cycles per packet:\s+([\d.]+)",
@@ -330,6 +349,7 @@ def append_run_log(log_path: str,
                    mode: str,
                    worker_sets: List[List[int]],
                    reader_sets: List[List[int]],
+                   description: str,
                    quiet: bool,
                    timeout_sec: int,
                    extra_args: str) -> None:
@@ -341,6 +361,7 @@ def append_run_log(log_path: str,
         f.write(f"mode: {mode}\n")
         f.write("worker_sets: " + ";".join(core_list_to_arg(s) for s in worker_sets) + "\n")
         f.write("reader_sets: " + ";".join(core_list_to_arg(s) for s in reader_sets) + "\n")
+        f.write(f"description: {description}\n")
         f.write(f"quiet: {quiet}\n")
         f.write(f"timeout_sec: {timeout_sec}\n")
         f.write(f"extra_args: {extra_args}\n")
@@ -363,6 +384,15 @@ def save_csv(rows: List[dict], output_dir: str, timestamp: str) -> str:
         "dispatch_enqueue_sec",
         "dispatch_other_sec",
         "process_time_sec",
+        "proc_parse_sec",
+        "proc_flowkey_lookup_sec",
+        "proc_flow_init_sec",
+        "proc_flow_sec",
+        "proc_ndpi_call_sec",
+        "proc_proto_check_sec",
+        "proc_ndpi_sec",
+        "proc_classified_fastpath_sec",
+        "proc_other_sec",
         "throughput_mpps",
         "bandwidth_gbps",
         "cycles_per_pkt",
@@ -382,6 +412,129 @@ def save_csv(rows: List[dict], output_dir: str, timestamp: str) -> str:
     return csv_path
 
 
+def configure_plot_fonts() -> None:
+    if not HAS_MATPLOTLIB:
+        return
+    from matplotlib import font_manager
+
+    preferred_names = [
+        "Noto Sans CJK SC",
+        "Noto Sans CJK JP",
+        "Noto Sans CJK TC",
+        "WenQuanYi Zen Hei",
+        "Microsoft YaHei",
+        "SimHei",
+        "PingFang SC",
+        "Source Han Sans SC",
+        "Arial Unicode MS",
+    ]
+    preferred_files = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/truetype/arphic/uming.ttc",
+    ]
+
+    for fp in preferred_files:
+        if os.path.exists(fp):
+            try:
+                font_manager.fontManager.addfont(fp)
+            except Exception:
+                pass
+
+    installed = {f.name for f in font_manager.fontManager.ttflist}
+    selected = [name for name in preferred_names if name in installed]
+    if not selected:
+        print("Warning: no CJK font found, Chinese text may not render correctly on plots")
+    matplotlib.rcParams["font.sans-serif"] = selected + ["DejaVu Sans"]
+    matplotlib.rcParams["axes.unicode_minus"] = False
+
+
+def to_float(value) -> float:
+    if value == "" or value is None:
+        return float("nan")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def plot_results(rows: List[dict], output_dir: str, binary: str, pcap: str, timestamp: str, description: str) -> List[str]:
+    if not HAS_MATPLOTLIB:
+        print("Skipping plots (matplotlib not available)")
+        return []
+
+    configure_plot_fonts()
+    task_ids = [int(r["task_id"]) for r in rows]
+    meta = (
+        f"binary: {binary}\n"
+        f"input: {pcap}\n"
+        f"ts: {timestamp}\n"
+        f"描述: {description if description else '(empty)'}"
+    )
+    fig, axes = plt.subplots(2, 2, figsize=(18, 10))
+
+    ax = axes[0, 0]
+    ax.plot(task_ids, [to_float(r["bandwidth_gbps"]) for r in rows], marker="o", linewidth=2)
+    ax.set_xlabel("Task ID")
+    ax.set_ylabel("Bandwidth (Gbps)")
+    ax.set_title("Task vs Bandwidth")
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(task_ids)
+
+    ax = axes[0, 1]
+    ax.plot(task_ids, [to_float(r["total_elapsed_sec"]) for r in rows], marker="o", linewidth=2, label="Elapsed (Total)")
+    ax.plot(task_ids, [to_float(r["elapsed_no_preprocess_sec"]) for r in rows], marker="D", linewidth=2, label="Elapsed (No Preprocess)")
+    ax.plot(task_ids, [to_float(r["dispatch_read_sec"]) for r in rows], marker="s", linewidth=2, label="Read")
+    ax.plot(task_ids, [to_float(r["process_time_sec"]) for r in rows], marker="^", linewidth=2, label="Process")
+    ax.set_xlabel("Task ID")
+    ax.set_ylabel("Time (s)")
+    ax.set_title("Task vs Elapsed(Total/NoPre) / Read / Process")
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(task_ids)
+    ax.legend(loc="best")
+
+    ax = axes[1, 0]
+    ax.plot(task_ids, [to_float(r["dispatch_read_sec"]) for r in rows], marker="o", linewidth=2, label="dispatch_read")
+    ax.plot(task_ids, [to_float(r["dispatch_flow_to_worker_sec"]) for r in rows], marker="^", linewidth=2, label="flow_to_worker")
+    ax.plot(task_ids, [to_float(r["dispatch_enqueue_sec"]) for r in rows], marker="s", linewidth=2, label="enqueue")
+    ax.plot(task_ids, [to_float(r["dispatch_other_sec"]) for r in rows], marker="x", linewidth=2, label="other")
+    ax.set_xlabel("Task ID")
+    ax.set_ylabel("Time (s)")
+    ax.set_title("Task vs Reader Breakdown")
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(task_ids)
+    ax.legend(loc="best")
+
+    ax = axes[1, 1]
+    ax.plot(task_ids, [to_float(r["proc_parse_sec"]) for r in rows], marker="o", linewidth=1.8, label="parse")
+    ax.plot(task_ids, [to_float(r["proc_flowkey_lookup_sec"]) for r in rows], marker="v", linewidth=1.8, label="flowkey_lookup")
+    ax.plot(task_ids, [to_float(r["proc_flow_init_sec"]) for r in rows], marker="P", linewidth=1.8, label="flow_init")
+    ax.plot(task_ids, [to_float(r["proc_flow_sec"]) for r in rows], marker="s", linewidth=1.8, label="flow")
+    ax.plot(task_ids, [to_float(r["proc_ndpi_call_sec"]) for r in rows], marker="*", linewidth=1.8, label="ndpi_call")
+    ax.plot(task_ids, [to_float(r["proc_proto_check_sec"]) for r in rows], marker="X", linewidth=1.8, label="proto_check")
+    ax.plot(task_ids, [to_float(r["proc_ndpi_sec"]) for r in rows], marker="^", linewidth=1.8, label="ndpi")
+    ax.plot(task_ids, [to_float(r["proc_classified_fastpath_sec"]) for r in rows], marker="h", linewidth=1.8, label="classified_fastpath")
+    ax.plot(task_ids, [to_float(r["proc_other_sec"]) for r in rows], marker="d", linewidth=1.8, label="other")
+    ax.set_xlabel("Task ID")
+    ax.set_ylabel("Time (s)")
+    ax.set_title("Task vs Process Breakdown")
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(task_ids)
+    ax.legend(loc="best")
+
+    fig.suptitle("mark3 Sweep Dashboard", fontsize=13)
+    fig.text(0.01, 0.01, meta, fontsize=9, ha="left", va="bottom")
+    fig.tight_layout(rect=[0, 0.12, 1, 0.94])
+    out_png = os.path.join(output_dir, f"benchmark_dashboard_{timestamp}.png")
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=r"Glyph .* missing from font\(s\).*")
+        fig.savefig(out_png, dpi=150)
+    plt.close(fig)
+    print(f"Saved: {out_png}")
+    return [out_png]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="mark3 sweep: worker_sets + reader_sets, paired/cross modes"
@@ -399,6 +552,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=0, help="timeout per run in seconds")
     parser.add_argument("--no-quiet", action="store_true", help="disable -q")
     parser.add_argument("--extra-args", default="", help="extra args appended to binary command")
+    parser.add_argument("--description", default="", help="run description (also shown on plots)")
     args = parser.parse_args()
 
     try:
@@ -412,6 +566,7 @@ def main() -> int:
         output_dir = args.output if args.output else cfg.get("output", "output")
         timeout_sec = args.timeout if args.timeout > 0 else int(cfg.get("timeout", 900))
         extra_args = args.extra_args if args.extra_args else str(cfg.get("extra_args", ""))
+        description = args.description if args.description else str(cfg.get("description", ""))
 
         quiet = bool(cfg.get("quiet", True))
         if args.no_quiet:
@@ -450,6 +605,7 @@ def main() -> int:
         mode,
         worker_sets,
         reader_sets,
+        description=description,
         quiet=quiet,
         timeout_sec=timeout_sec,
         extra_args=extra_args,
@@ -459,6 +615,8 @@ def main() -> int:
     print(f"Run log appended: {run_log_path}")
     print(f"Mode: {mode}")
     print(f"Total tasks: {len(tasks)}")
+    if description:
+        print(f"Description: {description}")
 
     rows: List[dict] = []
     for i, task in enumerate(tasks, start=1):
@@ -508,6 +666,15 @@ def main() -> int:
             "dispatch_enqueue_sec": metrics.get("dispatch_enqueue_sec", ""),
             "dispatch_other_sec": metrics.get("dispatch_other_sec", ""),
             "process_time_sec": metrics.get("process_time_sec", ""),
+            "proc_parse_sec": metrics.get("proc_parse_sec", ""),
+            "proc_flowkey_lookup_sec": metrics.get("proc_flowkey_lookup_sec", ""),
+            "proc_flow_init_sec": metrics.get("proc_flow_init_sec", ""),
+            "proc_flow_sec": metrics.get("proc_flow_sec", ""),
+            "proc_ndpi_call_sec": metrics.get("proc_ndpi_call_sec", ""),
+            "proc_proto_check_sec": metrics.get("proc_proto_check_sec", ""),
+            "proc_ndpi_sec": metrics.get("proc_ndpi_sec", ""),
+            "proc_classified_fastpath_sec": metrics.get("proc_classified_fastpath_sec", ""),
+            "proc_other_sec": metrics.get("proc_other_sec", ""),
             "throughput_mpps": metrics.get("throughput_mpps", ""),
             "bandwidth_gbps": metrics.get("bandwidth_gbps", ""),
             "cycles_per_pkt": metrics.get("cycles_per_pkt", ""),
@@ -521,6 +688,7 @@ def main() -> int:
 
     csv_path = save_csv(rows, run_output_dir, ts)
     print(f"Saved: {csv_path}")
+    plot_results(rows, run_output_dir, binary_path, input_path, ts, description)
 
     ok_count = sum(1 for r in rows if r["status"] == "ok")
     print(f"Done. success={ok_count}/{len(rows)}")
