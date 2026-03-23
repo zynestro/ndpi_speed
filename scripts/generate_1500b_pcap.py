@@ -139,14 +139,14 @@ protocols = [
         'request': b'GET /index.html HTTP/1.1\r\nHost: example.com\r\nUser-Agent: curl/8.0\r\nAccept: */*\r\n\r\n',
         'response': b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello, world'
     },
-    # {
-    #     'name': 'HTTPS',
-    #     'weight': 40,
-    #     'sport': 443,
-    #     'transport': 'tcp',
-    #     'request': b'\x16\x03\x01\x02\x00',
-    #     'response': b'\x16\x03\x03\x02\x00'
-    # },
+    {
+        'name': 'HTTPS',
+        'weight': 40,
+        'sport': 443,
+        'transport': 'tcp',
+        'request': b'\x16\x03\x01\x02\x00',
+        'response': b'\x16\x03\x03\x02\x00'
+    },
     {
         'name': 'DNS',
         'weight': 10,
