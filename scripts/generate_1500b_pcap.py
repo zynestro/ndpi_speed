@@ -94,7 +94,7 @@ def parse_args():
 args = parse_args()
 
 OUTPUT_DIR = args.output_dir
-OUTPUT_FILE = args.output or os.path.join(OUTPUT_DIR, "seed_1500b.pcap")
+OUTPUT_FILE = args.output or os.path.join(OUTPUT_DIR, "seed_150b.pcap")
 RANDOM_SEED = args.seed
 
 # 确保输出目录存在
