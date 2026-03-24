@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(ndpiBenchmarkMark3 C)
 
+# mark3 构建配置说明：
+# - 目标是生成多 worker + 多 dispatcher 的 benchmark 可执行文件
+# - 依赖 nDPI / libpcap / pthread
+# - 通过 NDPI_PREFIX 指定 nDPI 安装位置（默认 $HOME/ndpi-install）
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -17,6 +22,7 @@ if(NOT DEFINED NDPI_PREFIX)
   set(NDPI_PREFIX "$ENV{HOME}/ndpi-install")
 endif()
 
+# nDPI 头文件与库目录
 set(NDPI_INCLUDE_DIR "${NDPI_PREFIX}/include/ndpi")
 set(NDPI_LIB_DIR "${NDPI_PREFIX}/lib")
 
@@ -35,12 +41,19 @@ find_library(PCAP_LIB pcap REQUIRED)
 find_package(Threads REQUIRED)
 
 set(NDPI_BENCHMARK_SOURCES
+  # 入口与汇总输出
   src/main.c
+  # 公共工具（样本打印、绑核等）
   src/benchmark_common.c
+  # 报文标准化/解析/flow key
   src/packet_parser.c
+  # flow 状态表
   src/flow_table.c
+  # 软件 RSS（flow -> worker）
   src/rss_table.c
+  # worker 线程逻辑
   src/worker.c
+  # reader + dispatcher 控制逻辑
   src/reader.c
 )
 

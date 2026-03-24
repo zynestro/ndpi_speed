@@ -1,6 +1,18 @@
 #ifndef BENCHMARK_INTERNAL_H
 #define BENCHMARK_INTERNAL_H
 
+/*
+ * benchmark_internal.h（mark3）
+ *
+ * 角色：
+ * - 给 mark3 各 .c 文件提供“内部共享接口”
+ * - 汇总 reader/worker/rss/flow 之间的互相依赖声明
+ *
+ * 你可以把它理解成“实现层 glue header”：
+ * - ndpi_benchmark.h 放公共数据结构
+ * - benchmark_internal.h 放模块连接点与内部函数原型
+ */
+
 #include "ndpi_benchmark.h"
 
 #include <arpa/inet.h>
@@ -24,17 +36,26 @@ struct rss_table;
 typedef struct rss_table rss_table_t;
 
 typedef struct {
+  /* 输入与线程拓扑配置 */
   const char *pcap_file;
   worker_context_t *workers;
   uint32_t num_workers;
   uint32_t num_dispatchers;
   uint32_t *dispatcher_cores;
+
+  /* 运行期 flow->worker 粘性映射 */
   struct rss_table *rss;
+
+  /* 预处理阶段产物（reader 先载入，再由 dispatcher 并发消费） */
   void *packets;
   size_t packet_count;
   size_t *dispatcher_offsets; /* [num_dispatchers + 1] */
   size_t *dispatcher_indices; /* [packet_count], 索引到 packets */
+
+  /* dispatcher 汇总统计时的并发保护 */
   pthread_mutex_t stats_lock;
+
+  /* dispatch 阶段计时（ns） */
   uint64_t read_time_ns;
   uint64_t pcap_read_ns;
   uint64_t normalize_ns;
@@ -42,6 +63,8 @@ typedef struct {
   uint64_t rss_lookup_ns;
   uint64_t enqueue_ns;
   uint64_t read_other_ns;
+
+  /* preprocess 阶段计时（ns） */
   uint64_t preprocess_ns;
   uint64_t preprocess_dispatch_rss_ns;
   uint64_t preprocess_store_ns;

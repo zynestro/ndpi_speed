@@ -1,5 +1,14 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark3/src/benchmark_common.c
+ *
+ * 放“跨模块公共能力”：
+ * - 协议识别样本打印（带并发保护）
+ * - 线程绑核工具
+ * - 全局 quiet/sample 状态
+ */
+
 /* 进程级共享状态：
  * - 控制“打印前 N 条识别样本”的并发互斥和计数
  * - 控制是否静默输出

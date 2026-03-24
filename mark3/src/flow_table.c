@@ -1,5 +1,14 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark3/src/flow_table.c
+ *
+ * 提供 worker 私有 flow 状态哈希表：
+ * - 热路径操作是 get_or_create（每包都会触发）
+ * - 采用开放寻址，避免链表节点带来的额外分配开销
+ * - tombstone + rehash 保证删除后探测链仍正确
+ */
+
 /* 开放寻址哈希表槽位状态。 */
 typedef enum {
   SLOT_EMPTY = 0,

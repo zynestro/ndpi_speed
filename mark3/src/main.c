@@ -1,5 +1,15 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark3/src/main.c
+ *
+ * 本文件负责：
+ * 1) 解析命令行参数，确定 worker/dispatcher 拓扑
+ * 2) 初始化全局 nDPI 与每 worker 资源
+ * 3) 启动 worker 与 reader 线程，驱动整条 pipeline
+ * 4) 在结束时汇总并打印性能与识别统计
+ */
+
 void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
                              uint64_t total_cycles, double elapsed_sec,
                              uint64_t preprocess_ns,
@@ -196,6 +206,10 @@ static uint32_t *parse_dispatcher_core_list(const char *s, uint32_t *out_count) 
 }
 
 static benchmark_config_t parse_args(int argc, char **argv) {
+  /* 参数解析目标：
+   * - 形成 benchmark_config_t（后续 main 全流程只依赖该配置）
+   * - 对 worker 数量/核心列表做基础合法性检查
+   */
   benchmark_config_t cfg;
   memset(&cfg, 0, sizeof(cfg));
 
@@ -279,6 +293,7 @@ static benchmark_config_t parse_args(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+  /* 0) 读取运行配置并同步 quiet 标志到全局输出控制位。 */
   benchmark_config_t cfg = parse_args(argc, argv);
   g_quiet_mode = cfg.quiet_mode;
 
@@ -286,6 +301,7 @@ int main(int argc, char **argv) {
   printf("Standalone nDPI Benchmark Tool (mark3)\n");
   printf("========================================\n\n");
 
+  /* 1) 初始化 nDPI 全局上下文（供所有 worker 共享只读元数据）。 */
   printf("[1/4] Initializing nDPI...\n");
   struct ndpi_global_context *g_ctx = ndpi_global_init();
   if (!g_ctx) {
@@ -293,6 +309,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /* 2) 构建 worker 上下文：
+   * - 分配每 worker 队列
+   * - 绑定核心、协议配置、全局上下文引用
+   */
   printf("[2/4] Creating %u worker thread(s)...\n", cfg.num_workers);
   worker_context_t *workers = (worker_context_t *)calloc(cfg.num_workers, sizeof(worker_context_t));
   if (!workers) {
@@ -307,6 +327,7 @@ int main(int argc, char **argv) {
     workers[i].proto_file = cfg.proto_file;
     workers[i].g_ctx = g_ctx;
 
+    /* queue 是 reader/dispatcher -> worker 的唯一数据通道。 */
     workers[i].queue = packet_queue_create(QUEUE_CAPACITY);
     if (!workers[i].queue) {
       fprintf(stderr, "Error: failed to create packet queue for worker %u\n", i);
@@ -333,9 +354,11 @@ int main(int argc, char **argv) {
   }
 
   for (uint32_t i = 0; i < cfg.num_workers; i++) {
+    /* 每个 worker 独立初始化 nDPI module 与 flow table。 */
     init_worker_ndpi(&workers[i]);
   }
 
+  /* 全局 flow->worker 粘性映射表（多 dispatcher 共享访问）。 */
   rss_table_t *rss = rss_table_create(RSS_TABLE_INIT_CAP);
   if (!rss) {
     fprintf(stderr, "Error: failed to create flow->worker map\n");
@@ -347,6 +370,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /* 3) 启动 benchmark：
+   * - worker 先就绪并阻塞等包
+   * - reader 再开始读包/预处理/分发
+   */
   printf("[3/4] Starting streaming benchmark...\n");
   printf("      PCAP: %s\n", cfg.pcap_file);
   printf("      Workers: %u\n", cfg.num_workers);
@@ -390,6 +417,10 @@ int main(int argc, char **argv) {
   pthread_t reader;
 
   uint64_t wall_start_ns = 0, wall_end_ns = 0;
+  /* cycles + wall-time 双轨计时：
+   * - cycles 看微观代价
+   * - wall-time 看端到端耗时
+   */
   uint64_t cycles_start = rdtsc();
   wall_start_ns = get_time_ns();
 
@@ -398,6 +429,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  /* reader 线程退出后，worker 也会在队列 finished 后自然退出。 */
   pthread_join(reader, NULL);
   for (uint32_t i = 0; i < cfg.num_workers; i++) {
     pthread_join(workers[i].thread, NULL);
@@ -409,6 +441,10 @@ int main(int argc, char **argv) {
                        ? (double)(wall_end_ns - wall_start_ns) / 1000000000.0
                        : 0.0;
 
+  /* 4) 汇总输出：
+   * - preprocess / dispatch / process 三层时间
+   * - 吞吐、带宽、flow 识别结果
+   */
   printf("[4/4] Done.\n");
   print_benchmark_results(workers, cfg.num_workers, cycles_end - cycles_start, elapsed,
                           reader_ctx.preprocess_ns,
@@ -424,6 +460,7 @@ int main(int argc, char **argv) {
                           reader_ctx.enqueue_ns,
                           reader_ctx.read_other_ns);
 
+  /* 按“创建反序”释放资源，避免悬空引用。 */
   rss_table_destroy(rss);
   for (uint32_t i = 0; i < cfg.num_workers; i++) cleanup_worker(&workers[i]);
 

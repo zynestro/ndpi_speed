@@ -3,6 +3,11 @@
  *
  * Single-header interface for the streaming nDPI benchmark.
  * All structs and function declarations live here.
+ *
+ * mark3 视角：
+ * - 定义多线程 pipeline 的公共数据结构
+ * - 定义 queue / flow / worker / config 等核心对象
+ * - 被 reader / worker / parser / flow_table / main 共用
  */
 
 #ifndef NDPI_BENCHMARK_H
@@ -259,20 +264,25 @@ typedef struct {
 
 /* Per-worker context */
 typedef struct {
+  /* 线程身份信息 */
   uint32_t worker_id;
   uint32_t cpu_core;
 
+  /* 每 worker 独立 nDPI 实例，避免跨线程共享可变状态 */
   struct ndpi_detection_module_struct *ndpi;
   struct ndpi_global_context *g_ctx;
 
+  /* 每 worker 私有状态容器 */
   struct flow_table *flows;
 #ifdef NDPI_BENCHMARK_CLASSIFIED
   struct classified_table *classified;
 #endif
   packet_queue_t *queue;
 
+  /* 可选协议配置文件路径 */
   const char *proto_file;
 
+  /* 核心处理统计（用于最终汇总） */
   uint64_t packets_processed;
   uint64_t bytes_processed;
   uint64_t flows_created_total;
@@ -288,6 +298,8 @@ typedef struct {
   uint64_t ndpi_time_ns;
   uint64_t classified_fastpath_ns;
   uint64_t other_time_ns;
+
+  /* 预留给 reader 侧的负载感知（当前主要用于扩展） */
   _Atomic uint32_t active_flows;   /* reader 侧负载感知用 */
   _Atomic uint64_t proc_ewma_us;   /* 微秒/包的 EWMA */
 

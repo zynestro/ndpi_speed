@@ -1,6 +1,16 @@
 #ifndef BENCHMARK_INTERNAL_H
 #define BENCHMARK_INTERNAL_H
 
+/*
+ * benchmark_internal.h（mark4）
+ *
+ * mark4 是单线程实现，模块关系比 mark3 简化：
+ * - main 直接调用 parser + flow_table + nDPI
+ * - 不涉及 reader/worker 队列与 RSS 调度
+ *
+ * 本头文件用于汇总内部实现依赖的系统头与公共类型声明。
+ */
+
 #include "ndpi_benchmark.h"
 
 #include <arpa/inet.h>

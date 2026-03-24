@@ -1,5 +1,14 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark3/src/packet_parser.c
+ *
+ * 本模块做三件事：
+ * 1) 把不同链路层输入规范为 Ethernet 视图
+ * 2) 解析 L3/L4 关键字段（供 flow key 与 nDPI 使用）
+ * 3) 构造双向 canonical flow key，保证双向流归并到同一状态项
+ */
+
 /* 以太网与 VLAN 相关常量。 */
 #define ETHERTYPE_IPV4 0x0800
 #define ETHERTYPE_IPV6 0x86DD

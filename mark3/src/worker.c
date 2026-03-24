@@ -1,6 +1,62 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark3/src/worker.c
+ *
+ * worker 是“真正做协议识别”的执行单元：
+ * - 从队列取包
+ * - parse -> flow 状态 -> nDPI 增量识别
+ * - 更新统计并在首次识别成功时计数
+ */
+
 static void free_flow_cb(bench_flow_t *flow, void *user);
+
+/*
+ * ==============================
+ * mark3 worker 模块详细说明
+ * ==============================
+ *
+ * 一、worker 在线程模型里的位置
+ * --------------------------------
+ * - worker 是“最终执行识别”的消费者线程
+ * - 上游由 reader/dispatcher 把包写进每个 worker 的 queue
+ * - worker 只消费自己的队列，不共享 flow 表
+ *
+ * 二、为什么每个 worker 拥有独立 ndpi module？
+ * --------------------------------
+ * nDPI 的每流状态和内部缓存是可变的；并发共享同一 module 会引入锁或竞态。
+ * mark3 采取“每 worker 一份 ndpi detection module”：
+ * - 避免识别路径上的锁竞争
+ * - 使 worker 处理路径保持纯本地状态
+ * - 代价是内存占用上升（可接受，换吞吐）
+ *
+ * 三、worker_process_packet 的 6 步主线
+ * --------------------------------
+ * 1) parse：把以太网帧解析到 L3/L4 视图
+ * 2) keybuild：构造 canonical flow key + src/dst endpoint
+ * 3) flow lookup/create：在 worker 私有 hash 表取状态
+ * 4) flow update：更新方向计数、时间戳、seen_packets
+ * 5) ndpi call：增量推进协议识别状态机
+ * 6) proto edge check：只在 UNKNOWN->KNOWN 的边沿累计“识别成功流数”
+ *
+ * 四、计时体系
+ * --------------------------------
+ * worker 把每包处理拆成多个子阶段计时：
+ * - parse/keybuild/flow_lookup/flow_init/ndpi_call/proto_check/other
+ * 这样主程序能输出更细粒度瓶颈定位信息。
+ *
+ * 五、方向判断约定
+ * --------------------------------
+ * - 首包的 src endpoint 定义为 client
+ * - 后续包通过 endpoint_equal 与 client 比较得到 dir(0/1)
+ * - 该 dir 传给 nDPI 的 in_pkt_dir，影响内部识别逻辑
+ *
+ * 六、可选 classified 快路径（编译宏）
+ * --------------------------------
+ * NDPI_BENCHMARK_CLASSIFIED 开启时：
+ * - 已识别过的 flow 可直接命中 classified_table
+ * - 命中后跳过 ndpi_detection_process_packet，降低重复开销
+ */
 
 /* 初始化单个 worker 的识别环境：
  * - 创建 ndpi detection module
@@ -126,6 +182,11 @@ static void free_flow_cb(bench_flow_t *flow, void *user) {
  * - other_time_ns: 剩余 bookkeeping
  */
 static inline void worker_process_packet(worker_context_t *w, const queue_packet_t *pkt) {
+  /* 单包函数是 worker 的热路径，尽量保持：
+   * - 早失败快速返回
+   * - 分项计时可解释
+   * - 状态更新顺序稳定（先状态后统计）
+   */
   uint64_t t0 = get_time_ns();
   uint64_t known_ns = 0;
 
@@ -148,6 +209,9 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
   flow_key_t key;
   endpoint_t src_ep, dst_ep;
   flow_key_from_packet(&pp, &key, &src_ep, &dst_ep);
+  /* flow_key_from_packet 会做双向规范化：
+   * A->B 与 B->A 归并到同一 flow_key。
+   */
   uint64_t t_key1 = get_time_ns();
   uint64_t keybuild_ns = t_key1 - t_key0;
   w->keybuild_time_ns += keybuild_ns;
@@ -202,6 +266,7 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
 
     flow->client = src_ep;
     flow->server = dst_ep;
+    /* 这里把“首次方向”固化到 flow，用于后续 dir 判定。 */
 
     flow->ndpi_flow = (struct ndpi_flow_struct *)ndpi_calloc(1, sizeof(struct ndpi_flow_struct));
     if (!flow->ndpi_flow) {
@@ -220,6 +285,10 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
 
   /* 方向判断基于“首次包定义 client 端点”的约定。 */
   uint8_t dir = endpoint_equal(&src_ep, &flow->client) ? 0 : 1;
+  /* dir 的语义：
+   * - 0：当前包方向与首包 client->server 一致
+   * - 1：反向 server->client
+   */
 
   /* 3) 更新双向报文/字节统计，维护 last_seen。 */
   if (dir == 0) {
@@ -236,12 +305,19 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
   struct ndpi_flow_input_info in = {0};
   in.in_pkt_dir = dir;
   in.seen_flow_beginning = (flow->seen_packets == 0);
+  /* seen_flow_beginning 给 nDPI 一个提示：
+   * 当前包是否是该流第一包，可影响某些协议状态初始化路径。
+   */
 
   /* 4) 交给 nDPI 做增量识别。 */
   uint64_t t_ndpi0 = get_time_ns();
   (void)ndpi_detection_process_packet(w->ndpi, flow->ndpi_flow,
                                       pp.l3, pp.l3_len,
                                       ts_ms, &in);
+  /* 注意：
+   * nDPI 识别是增量推进，不保证每包都有最终协议结论。
+   * 所以这里不能“每次都+1 detected”，只能检测边沿。
+   */
   uint64_t t_ndpi1 = get_time_ns();
   uint64_t ndpi_call_ns = t_ndpi1 - t_ndpi0;
   w->ndpi_call_time_ns += ndpi_call_ns;
@@ -261,6 +337,7 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
     if (app != NDPI_PROTOCOL_UNKNOWN) {
       flow->protocol_counted = true;
       w->flows_with_protocol_total++;
+      /* 样本打印只做展示，不影响识别结果。 */
       maybe_print_flow_sample(w, flow);
 #ifdef NDPI_BENCHMARK_CLASSIFIED
       app_proto = app;
@@ -283,6 +360,7 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
 
   /* 周期性更新“单包处理耗时 EWMA”，供后续负载感知策略扩展。 */
   if ((w->packets_processed & 0x3FF) == 0) {
+    /* 每 1024 包更新一次 EWMA，避免每包原子写的成本。 */
     uint64_t avg = (w->processing_time_ns / w->packets_processed) / 1000ULL;
     uint64_t prev = atomic_load_explicit(&w->proc_ewma_us, memory_order_relaxed);
     uint64_t ewma = prev ? ((prev * 7 + avg) / 8) : avg;
@@ -306,10 +384,15 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
 void *worker_thread_entry(void *arg) {
   worker_context_t *w = (worker_context_t *)arg;
 
+  /* worker 线程入口语义：
+   * - 先绑核（若配置）
+   * - 再不断从 queue 消费，直到 queue finished 且耗尽
+   */
   set_thread_affinity(w->cpu_core);
 
   queue_packet_t *pkt = NULL;
   while (packet_queue_peek(w->queue, &pkt)) {
+    /* peek 成功表示有可读包；consume 后 tail 前进。 */
     worker_process_packet(w, pkt);
     packet_queue_consume(w->queue);
   }

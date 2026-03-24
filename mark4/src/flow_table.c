@@ -1,5 +1,13 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark4/src/flow_table.c
+ *
+ * 单线程版本的 flow 状态容器：
+ * - 热路径：flow_table_get_or_create
+ * - 结束阶段：flow_table_foreach（用于 category/proto 聚合）
+ */
+
 /* mark4 状态阶段职责：
  * - 维护 flow_key -> bench_flow_t 映射
  * - 支持“查找或创建”热路径（每包都会走）

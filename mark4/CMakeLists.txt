@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(ndpiBenchmarkMark4 C)
 
+# mark4 构建配置说明：
+# - 目标是生成单线程直读版本 ndpiBenchmarkMark4
+# - 依赖 nDPI / libpcap / pthread
+# - 使用 NDPI_PREFIX 指定 nDPI 安装根目录
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -17,6 +22,7 @@ if(NOT DEFINED NDPI_PREFIX)
   set(NDPI_PREFIX "$ENV{HOME}/ndpi-install")
 endif()
 
+# nDPI 头文件与库目录
 set(NDPI_INCLUDE_DIR "${NDPI_PREFIX}/include/ndpi")
 set(NDPI_LIB_DIR "${NDPI_PREFIX}/lib")
 
@@ -35,8 +41,11 @@ find_library(PCAP_LIB pcap REQUIRED)
 find_package(Threads REQUIRED)
 
 set(NDPI_BENCHMARK_SOURCES
+  # 程序入口 + 单线程主循环 + 统计输出
   src/main.c
+  # 报文标准化/解析/flow key
   src/packet_parser.c
+  # flow 状态表
   src/flow_table.c
 )
 

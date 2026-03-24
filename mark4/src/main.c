@@ -4,6 +4,61 @@
 #include <sys/types.h>
 #include <time.h>
 
+/*
+ * mark4/src/main.c
+ *
+ * 核心定位：单线程直读版本。
+ * - 不使用 reader/worker 队列，也不做 dispatcher 分发
+ * - 直接在一个循环里完成读包、解析、flow 状态推进、nDPI 识别
+ * - 结束后遍历 flow 表做汇总输出与 CSV 落盘
+ */
+
+/*
+ * ==============================
+ * mark4 main 详细时序说明
+ * ==============================
+ *
+ * mark4 的执行可以拆成 6 个阶段：
+ *
+ * 阶段 1：参数与输出目录准备
+ * - 解析输入 pcap、可选 core 绑定、输出目录
+ * - 生成时间戳目录 output/<timestamp>，避免覆盖旧结果
+ *
+ * 阶段 2：nDPI 初始化
+ * - ndpi_global_init 创建全局上下文
+ * - ndpi_init_detection_module 创建本次运行唯一 detection module
+ * - 可选加载 proto 文件，最后 finalize
+ *
+ * 阶段 3：flow 状态容器初始化
+ * - flow_table_create 建立 flow_key -> bench_flow_t 映射
+ * - 所有包共享这张表，结束后统一遍历汇总
+ *
+ * 阶段 4：单线程读包主循环（核心）
+ * 对每个包执行：
+ * 1) pcap_next_ex
+ * 2) normalize_to_ethernet
+ * 3) parse_ethernet_frame
+ * 4) flow_key_from_packet + flow_table_get_or_create
+ * 5) ndpi_detection_process_packet
+ * 6) 首次识别成功时记录检测时延/包位置
+ *
+ * 阶段 5：结束后聚合统计
+ * - 基础吞吐/流识别统计
+ * - 可选 per-flow 明细打印
+ * - category 汇总
+ * - proto+category 汇总并排序
+ * - 写 CSV
+ *
+ * 阶段 6：资源释放
+ * - pcap_close
+ * - flow_table_destroy（连带释放 ndpi_flow）
+ * - ndpi module/global deinit
+ *
+ * 你在讲解时可以强调：
+ * - mark4 代码路径短、行为确定，适合作为准确性/延迟基线
+ * - mark3 复杂并行结构的对照组就是 mark4
+ */
+
 #define CATEGORY_BUCKETS 1024
 
 typedef struct {
@@ -75,6 +130,7 @@ static void usage(const char *prog) {
 }
 
 static benchmark_config_t parse_args(int argc, char **argv) {
+  /* 解析运行参数，形成单线程版本的配置对象。 */
   benchmark_config_t cfg;
   memset(&cfg, 0, sizeof(cfg));
   cfg.cpu_core = UINT32_MAX;
@@ -271,6 +327,11 @@ static bool write_proto_summary_csv(const char *csv_path,
                                     struct ndpi_detection_module_struct *ndpi,
                                     const proto_stat_t *stats,
                                     size_t count) {
+  /* CSV 列是“可分析字段”而不是原始内部字段：
+   * - 协议名 + master/app id
+   * - category 名称/id
+   * - 流数与平均检测延迟/检测包位次
+   */
   FILE *fp = fopen(csv_path, "w");
   if (!fp) return false;
 
@@ -356,6 +417,7 @@ static void aggregate_category_cb(bench_flow_t *flow, void *user) {
 }
 
 int main(int argc, char **argv) {
+  /* 0) 初始化运行目录与可选绑核。 */
   benchmark_config_t cfg = parse_args(argc, argv);
   char run_ts[32] = {0};
   char run_dir[PATH_MAX] = {0};
@@ -371,6 +433,7 @@ int main(int argc, char **argv) {
   }
 
   if (cfg.cpu_core != UINT32_MAX) {
+    /* 单线程版本也支持绑核，便于减少调度抖动。 */
     set_thread_affinity(cfg.cpu_core);
   }
 
@@ -380,6 +443,7 @@ int main(int argc, char **argv) {
   printf("PCAP: %s\n\n", cfg.pcap_file);
   printf("Output: %s\n\n", run_dir);
 
+  /* 1) 初始化 nDPI。 */
   struct ndpi_global_context *g_ctx = ndpi_global_init();
   if (!g_ctx) {
     fprintf(stderr, "Error: ndpi_global_init() failed\n");
@@ -399,6 +463,7 @@ int main(int argc, char **argv) {
   }
   ndpi_finalize_initialization(ndpi);
 
+  /* 2) 创建 flow 状态表（所有包共享同一张表）。 */
   struct flow_table *flows = flow_table_create(16384);
   if (!flows) {
     fprintf(stderr, "Error: flow_table_create() failed\n");
@@ -407,6 +472,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /* 3) 打开 pcap，开始单线程主循环。 */
   char errbuf[PCAP_ERRBUF_SIZE];
   pcap_t *pc = pcap_open_offline(cfg.pcap_file, errbuf);
   if (!pc) {
@@ -442,6 +508,7 @@ int main(int argc, char **argv) {
     stats.pcap_read_ns += (t_read1 - t_read0);
 
     if (rc == 1) {
+      /* 收到一个有效包，进入完整处理路径。 */
       stats.total_packets++;
       stats.total_bytes += hdr->len;
 
@@ -461,6 +528,7 @@ int main(int argc, char **argv) {
                                  &norm_wirelen,
                                  scratch,
                                  sizeof(scratch))) {
+        /* 标准化失败：记录统计并跳过该包。 */
         stats.normalize_fail_packets++;
         uint64_t t_proc1 = get_time_ns();
         stats.process_ns += (t_proc1 - t_proc0);
@@ -470,6 +538,7 @@ int main(int argc, char **argv) {
       parsed_packet_t pp;
       /* 解析 L3/L4 关键字段（IP/端口/协议号）供 flow key 和 nDPI 使用。 */
       if (parse_ethernet_frame(norm_data, norm_caplen, &pp) != PARSE_OK) {
+        /* L3/L4 解析失败：记录统计并跳过该包。 */
         stats.parse_fail_packets++;
         uint64_t t_proc1 = get_time_ns();
         stats.process_ns += (t_proc1 - t_proc0);
@@ -481,6 +550,7 @@ int main(int argc, char **argv) {
       endpoint_t src_ep;
       endpoint_t dst_ep;
       flow_key_from_packet(&pp, &key, &src_ep, &dst_ep);
+      /* flow_key 是双向 canonical key，保证双向包聚合到同一 flow。 */
 
       uint64_t h = flow_key_hash(&key);
       bool is_new = false;
@@ -496,6 +566,7 @@ int main(int argc, char **argv) {
       }
 
       if (is_new) {
+        /* 首次出现该 flow：初始化方向端点与 nDPI 流状态。 */
         stats.flows_created++;
         flow->client = src_ep;
         flow->server = dst_ep;
@@ -515,6 +586,7 @@ int main(int argc, char **argv) {
       }
 
       uint8_t dir = endpoint_equal(&src_ep, &flow->client) ? 0 : 1;
+      /* 与 mark3 一样，方向由“首包定义 client”规则确定。 */
       if (dir == 0) {
         flow->c2s_packets++;
         flow->c2s_bytes += norm_wirelen;
@@ -535,6 +607,7 @@ int main(int argc, char **argv) {
                                           pp.l3_len,
                                           flow->last_seen_ms,
                                           &in);
+      /* nDPI 识别不是一次完成，通常需要同流多个包逐步收敛。 */
 
       if (!flow->protocol_counted) {
         uint16_t app = ndpi_get_flow_appprotocol(flow->ndpi_flow);
@@ -544,9 +617,9 @@ int main(int argc, char **argv) {
           flow->detected_app_proto = app;
           flow->detected_master_proto = ndpi_get_flow_masterprotocol(flow->ndpi_flow);
           flow->detected_category = ndpi_get_flow_category(flow->ndpi_flow);
-          flow->detection_packet_in_flow = flow->seen_packets;
+          flow->detection_packet_in_flow = flow->seen_packets;  /* 第几个同流包识别成功 */
           flow->detection_packet_global = stats.total_packets;
-          flow->detection_latency_ns = get_time_ns() - flow->first_seen_ns;
+          flow->detection_latency_ns = get_time_ns() - flow->first_seen_ns; /* 首包到识别成功耗时 */
           stats.flows_detected++;
         }
       }
@@ -554,10 +627,13 @@ int main(int argc, char **argv) {
       uint64_t t_proc1 = get_time_ns();
       stats.process_ns += (t_proc1 - t_proc0);
     } else if (rc == -2) {
+      /* EOF：正常结束。 */
       break;
     } else if (rc == 0) {
+      /* 超时/暂时无数据（离线 pcap 通常较少见），继续轮询。 */
       continue;
     } else {
+      /* 读取错误：打印错误并失败退出。 */
       fprintf(stderr, "Error: pcap_next_ex() failed: %s\n", pcap_geterr(pc));
       pcap_close(pc);
       flow_table_destroy(flows, free_flow_cb, NULL);
@@ -567,6 +643,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  /* 4) 处理结束后做多维汇总输出。 */
   uint64_t wall_end_ns = get_time_ns();
   double elapsed_sec = (wall_end_ns > wall_start_ns)
                            ? (double)(wall_end_ns - wall_start_ns) / 1e9
@@ -599,6 +676,7 @@ int main(int argc, char **argv) {
   aggregate_ctx_t actx = {.ndpi = ndpi, .cat_stats = cat_stats};
   /* 第一轮聚合：按 category 汇总。 */
   flow_table_foreach(flows, aggregate_category_cb, &actx);
+  /* 第一轮聚合按 category，观察业务类型分布。 */
 
   printf("\n========================================\n");
   printf("Category Summary (Detected Flows)\n");
@@ -661,6 +739,7 @@ int main(int argc, char **argv) {
 
   free(proto_ctx.items);
 
+  /* 5) 释放资源。 */
   pcap_close(pc);
   flow_table_destroy(flows, free_flow_cb, NULL);
   ndpi_exit_detection_module(ndpi);

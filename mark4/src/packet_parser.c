@@ -1,9 +1,9 @@
 #include "benchmark_internal.h"
 
-/* mark4 解析阶段职责：
- * - 将不同链路层包统一成 Ethernet 视图
- * - 提取 flow key 所需字段（IP/端口/L4）
- * - 输出可直接喂给 nDPI 的 L3 指针与长度
+/* mark4 解析阶段职责（输入->输出）：
+ * - 输入：来自 pcap 的原始链路层报文
+ * - 处理：标准化链路层 + 解析 IP/TCP/UDP 关键字段 + 生成 canonical flow key
+ * - 输出：可直接用于 nDPI 的 L3 指针/长度，以及 flow 状态查询所需键值
  */
 
 /* 以太网与 VLAN 相关常量。 */
@@ -12,6 +12,16 @@
 #define ETHERTYPE_VLAN 0x8100
 #define ETHERTYPE_QINQ 0x88A8
 #define ETH_HDR_LEN 14
+#define LINUX_SLL_HDR_LEN 16
+#define LINUX_SLL2_HDR_LEN 20
+
+/* 某些 libpcap 头文件未导出 DLT_LINUX_SLL2。 */
+#ifndef DLT_LINUX_SLL
+#define DLT_LINUX_SLL 113
+#endif
+#ifndef DLT_LINUX_SLL2
+#define DLT_LINUX_SLL2 276
+#endif
 
 /* 统一链路层为 Ethernet 视图：
  * - 已是 DLT_EN10MB: 原样返回
@@ -82,6 +92,50 @@ bool normalize_to_ethernet(int linktype,
     scratch[12] = (uint8_t)(ether_type >> 8);
     scratch[13] = (uint8_t)(ether_type & 0xFF);
     memcpy(scratch + ETH_HDR_LEN, data, caplen);
+
+    *out_data = scratch;
+    *out_caplen = new_caplen;
+    *out_wirelen = wirelen;
+    return true;
+  }
+
+  /* Linux cooked capture (v1):
+   * [0..1]=packet_type, [2..3]=hatype, [4..5]=halen, [6..13]=addr, [14..15]=protocol
+   * protocol 为网络字节序 EtherType（如 0x0800/0x86DD）。
+   */
+  if (linktype == DLT_LINUX_SLL) {
+    if (caplen < LINUX_SLL_HDR_LEN) return false;
+    uint16_t ether_type = (uint16_t)((data[14] << 8) | data[15]);
+
+    uint16_t new_caplen = (uint16_t)(caplen - LINUX_SLL_HDR_LEN + ETH_HDR_LEN);
+    if (new_caplen > scratch_len) return false;
+
+    memset(scratch, 0, 12);
+    scratch[12] = (uint8_t)(ether_type >> 8);
+    scratch[13] = (uint8_t)(ether_type & 0xFF);
+    memcpy(scratch + ETH_HDR_LEN, data + LINUX_SLL_HDR_LEN, caplen - LINUX_SLL_HDR_LEN);
+
+    *out_data = scratch;
+    *out_caplen = new_caplen;
+    *out_wirelen = wirelen;
+    return true;
+  }
+
+  /* Linux cooked capture v2 (tcpdump -i any 常见):
+   * [0..1]=protocol, [2..3]=reserved, [4..7]=ifindex, [8..9]=hatype,
+   * [10]=pkttype, [11]=halen, [12..19]=addr
+   */
+  if (linktype == DLT_LINUX_SLL2) {
+    if (caplen < LINUX_SLL2_HDR_LEN) return false;
+    uint16_t ether_type = (uint16_t)((data[0] << 8) | data[1]);
+
+    uint16_t new_caplen = (uint16_t)(caplen - LINUX_SLL2_HDR_LEN + ETH_HDR_LEN);
+    if (new_caplen > scratch_len) return false;
+
+    memset(scratch, 0, 12);
+    scratch[12] = (uint8_t)(ether_type >> 8);
+    scratch[13] = (uint8_t)(ether_type & 0xFF);
+    memcpy(scratch + ETH_HDR_LEN, data + LINUX_SLL2_HDR_LEN, caplen - LINUX_SLL2_HDR_LEN);
 
     *out_data = scratch;
     *out_caplen = new_caplen;

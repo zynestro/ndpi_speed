@@ -1,5 +1,14 @@
 #include "benchmark_internal.h"
 
+/*
+ * mark3/src/rss_table.c
+ *
+ * 软件 RSS 的核心职责：
+ * - 维护 flow key -> target(worker/dispatcher) 的稳定映射
+ * - 确保同一 flow 在活跃期内尽量粘到同一目标，减少状态抖动
+ * - 在超时后允许重新分配，缓解长期偏斜
+ */
+
 #define RSS_FLOW_TIMEOUT_MS 120000ULL
 
 typedef enum {

@@ -1,6 +1,15 @@
 #ifndef NDPI_BENCHMARK_H
 #define NDPI_BENCHMARK_H
 
+/*
+ * ndpi_benchmark.h（mark4）
+ *
+ * 角色：
+ * - 定义单线程 benchmark 共用的数据结构
+ * - 提供 parser / flow_table 的对外接口声明
+ * - 作为 main.c 与实现模块之间的公共契约
+ */
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -48,13 +57,17 @@ typedef struct {
 } endpoint_t;
 
 typedef struct {
+  /* 该 flow 的规范化 key（双向统一） */
   flow_key_t key;
 
+  /* 首包定义出的方向端点（用于后续包方向判断） */
   endpoint_t client;
   endpoint_t server;
 
+  /* nDPI 每流状态 */
   struct ndpi_flow_struct *ndpi_flow;
 
+  /* 双向计数与活跃时间 */
   uint64_t last_seen_ms;
   uint64_t c2s_packets;
   uint64_t s2c_packets;
@@ -62,6 +75,7 @@ typedef struct {
   uint64_t s2c_bytes;
   uint64_t seen_packets;
 
+  /* 协议识别结果与“识别发生时刻”统计 */
   bool protocol_counted;
   uint64_t first_seen_ns;
   uint64_t detection_latency_ns;
