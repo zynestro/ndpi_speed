@@ -1,81 +1,149 @@
-# mark2: nDPI Streaming Benchmark (Single Baseline Version)
+# mark2: 执行流程与代码对应（详细版）
 
-`mark2` 是对 `mark1` 的“单基线重构版”：
-- 只保留一个可执行版本：`ndpiBenchmarkMark2`
-- 不包含 `classified/batch/mem/singlehash/agglb` 这些变体目标
-- 线程模型与流程保持一致：`reader -> hash/rss -> worker -> flow table -> nDPI`
+## 1. mark2 的定位
 
-## 目录结构
+`mark2` 的代码执行模型与 `mark1` 主路径一致，但在构建层面只保留一个目标：
 
-- `include/ndpi_benchmark.h`
-  统一声明类型、队列、计时字段与函数接口
-- `include/benchmark_internal.h`
-  reader/worker/main 的内部共享接口
-- `src/main.c`
-  参数解析、线程生命周期、结果汇总与打印
-- `src/reader.c`
-  reader 线程：读取/分流/入队 + 读路径计时
-- `src/worker.c`
-  worker 线程：解析/查流/识别 + 处理路径计时
-- `src/packet_parser.c`
-  链路层标准化、L3/L4 解析、flow key 构造、快速 hash
-- `src/flow_table.c`
-  worker 私有 flow 状态表
-- `src/rss_table.c`
-  reader 侧 flow->worker 粘性映射表
-- `src/benchmark_common.c`
-  共享工具和样本打印逻辑
+- 仅构建：`ndpiBenchmarkMark2`
+- 不再在 CMake 中暴露 classified/batch/mem 等变体目标
 
-## 构建
+因此它可以视为“单基线版本”。
 
-```bash
-cmake -S mark2 -B mark2/build
-cmake --build mark2/build -j4
-```
+## 2. 代码主干结构
 
-如果 nDPI 不在默认路径 `$HOME/ndpi-install`：
+- `src/main.c`：生命周期编排、线程启动与结果汇总
+- `src/reader.c`：读包 -> 标准化 -> hash -> rss -> 入队
+- `src/rss_table.c`：`flow -> worker` 粘性映射与重分配
+- `src/worker.c`：单包处理（parse/flow/nDPI）
+- `src/flow_table.c`：worker 私有流表
+- `src/packet_parser.c`：包标准化与协议头解析
+- `src/benchmark_common.c`：绑核与公共工具
 
-```bash
-cmake -S mark2 -B mark2/build -DNDPI_PREFIX=/path/to/ndpi-install
-```
+## 3. main 执行阶段（按函数）
 
-## 运行
+对应：`src/main.c`
 
-```bash
-./mark2/build/ndpiBenchmarkMark2 -i /path/to/xx.pcap -n 4 -c 1,2,3,4 -r 0
-```
+### 阶段 A：参数解析
 
-参数：
-- `-i` 输入 pcap（必选）
-- `-n` worker 数
-- `-c` worker 绑核列表
-- `-r` reader 绑核
-- `-p` 协议配置文件（可选）
-- `-q` quiet 模式
+- `parse_args()`
+  - 必填 `-i`
+  - 解析 `-n/-c/-r/-p/-q`
+  - 组装 `benchmark_config_t`
 
-## 计时口径（重点）
+### 阶段 B：全局资源初始化
 
-mark2 的计时以纳秒为内部单位，统一使用 `CLOCK_MONOTONIC_RAW`。
+1. `ndpi_global_init()`
+2. 分配 `worker_context_t[]`
+3. 对每个 worker：
+   - 创建 `packet_queue_create(...)`
+   - `init_worker_ndpi(...)`（在 `src/worker.c`）
+4. 创建 `rss_table_create(...)`
 
-### Read 路径
-- `Read pcap_next_ex`: 取包调用时间
-- `Read hash`: 分流 hash 计算
-- `Read rss_lookup`: RSS 映射查找/分配
-- `Read enqueue`: 入队时间（包含队列压力带来的等待）
-- `Read other`: 其余 reader 开销（包含 normalize + 循环边界开销）
+### 阶段 C：线程拉起
 
-### Process 路径
-- `Process parse`: 报文解析
-- `Process flowkey_lookup`: flowkey 构造 + flow 查找/创建
-- `Process flow_init`: 新流初始化
-- `Process flow`: flow 阶段聚合
-- `Process nDPI call`: nDPI 检测函数调用
-- `Process proto_check`: 协议命中检查/统计
-- `Process nDPI`: nDPI 阶段聚合
-- `Process classified_fastpath`: 预留字段（mark2 基线通常为 0）
-- `Process other`: 其余处理开销
+1. 先起全部 worker：`pthread_create(worker_thread_entry)`
+2. 再起 reader：`pthread_create(reader_thread_entry)`
+3. 使用 `rdtsc` + `get_time_ns` 记录运行总时长
 
-说明：
-- `Process Time` 口径仍是“最慢 worker”的处理时长（wall 主导）
-- 分项阶段为可加总统计，用于定位瓶颈
+### 阶段 D：收尾
 
+1. `pthread_join(reader)`
+2. `pthread_join(all workers)`
+3. `print_benchmark_results(...)`
+4. 释放 `rss/workers/g_ctx/core_list`
+
+## 4. reader 执行阶段
+
+对应：`src/reader.c`
+
+入口：`reader_thread_entry()`
+
+- 默认进 `reader_thread_stream()`
+- 若定义 `NDPI_BENCHMARK_MEMREADER` 才进 `reader_thread_mem()`
+
+基线（mark2 默认）是 stream 路径。
+
+### stream 主循环细节
+
+函数：`reader_thread_stream()`
+
+每个包：
+
+1. `pcap_next_ex()` 取包
+2. `normalize_to_ethernet(...)`
+3. `compute_flow_hash(...)` 计算 `h1`
+4. `h2 = rss_mix32(...)`，拼 `flow key`
+5. `rss_table_lookup_or_assign(...)` 选 worker
+6. `packet_queue_push(...)` 投递到 worker 队列
+
+结束时：
+
+- 对每个 worker 调 `packet_queue_finish(...)` 作为结束信号
+- `finalize_reader_timers(...)`
+
+## 5. RSS 映射逻辑
+
+对应：`src/rss_table.c`
+
+关键函数：
+
+- `rss_table_lookup_or_assign(...)`
+  - 命中：返回历史 worker，保持流粘性
+  - 超时（`RSS_FLOW_TIMEOUT_MS`）可重选 worker
+  - 未命中：调用 `rss_select_worker(...)` 分配
+
+- `rss_select_worker(...)`
+  - 默认 `power-of-two choices`
+  - 候选 `w0 = h1 % N`, `w1 = h2 % N`
+  - 选队列更浅的一边
+
+## 6. worker 执行阶段（核心）
+
+对应：`src/worker.c`
+
+入口：`worker_thread_entry()`
+
+- 循环 `packet_queue_peek -> worker_process_packet -> packet_queue_consume`
+
+单包主函数：`worker_process_packet()`
+
+按顺序：
+
+1. `parse_ethernet_frame(...)`
+2. `flow_key_from_packet(...)`
+3. `flow_table_get_or_create(...)`
+4. 新流时：
+   - `ndpi_calloc(ndpi_flow_struct)`
+   - `set_ndpi_flow_tuple(...)`
+5. 更新 c2s/s2c 统计和 `last_seen_ms`
+6. `ndpi_detection_process_packet(...)`
+7. `ndpi_get_flow_appprotocol(...)` 检查首次命中并计数
+
+## 7. flow_table 阶段
+
+对应：`src/flow_table.c`
+
+- `flow_table_get_or_create(...)` 是热点路径
+- 开放寻址 + 线性探测
+- `flow_table_rehash(...)` 扩容
+- `flow_table_destroy(..., free_flow_cb, ...)` 释放 nDPI flow
+
+## 8. 输出指标对应
+
+对应：`src/main.c::print_benchmark_results()`
+
+输出分层：
+
+1. Read 路径：
+   - `pcap_next_ex/hash/rss_lookup/enqueue/other`
+2. Process 路径：
+   - `parse/flowkey_lookup/flow_init/flow/ndpi_call/proto_check/other`
+3. 全局：
+   - Throughput/Bandwidth/CPP
+   - 检测命中流占比
+   - 每 worker 统计
+
+特别口径：
+
+- `Process Time` 取最慢 worker（wall 主导）
+- 其余分项多为跨 worker 求和
