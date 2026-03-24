@@ -1,5 +1,11 @@
 #include "benchmark_internal.h"
 
+/* mark4 解析阶段职责：
+ * - 将不同链路层包统一成 Ethernet 视图
+ * - 提取 flow key 所需字段（IP/端口/L4）
+ * - 输出可直接喂给 nDPI 的 L3 指针与长度
+ */
+
 /* 以太网与 VLAN 相关常量。 */
 #define ETHERTYPE_IPV4 0x0800
 #define ETHERTYPE_IPV6 0x86DD

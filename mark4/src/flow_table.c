@@ -1,5 +1,11 @@
 #include "benchmark_internal.h"
 
+/* mark4 状态阶段职责：
+ * - 维护 flow_key -> bench_flow_t 映射
+ * - 支持“查找或创建”热路径（每包都会走）
+ * - 供主线程遍历做 category/proto 汇总
+ */
+
 /* 开放寻址哈希表槽位状态。 */
 typedef enum {
   SLOT_EMPTY = 0,
