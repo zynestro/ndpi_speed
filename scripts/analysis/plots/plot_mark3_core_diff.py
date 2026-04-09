@@ -118,7 +118,7 @@ def main() -> int:
     parser.add_argument(
         "--csv",
         required=True,
-        help="Path to benchmark_results_*.csv produced by scripts/benchmark_sweep_mark3.py",
+        help="Path to benchmark_results_*.csv produced by scripts/benchmarks/mark3/benchmark_sweep_mark3.py",
     )
     parser.add_argument(
         "--out",

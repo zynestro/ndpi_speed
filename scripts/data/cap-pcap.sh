@@ -7,7 +7,7 @@ set -euo pipefail
 # - avoids long hangs on network failures
 #
 # Example:
-#   CAPTURE_SEC=120 MAX_PKTS=12000 PROFILE=encrypted_heavy ./scripts/cap-pcap.sh
+#   CAPTURE_SEC=120 MAX_PKTS=12000 PROFILE=encrypted_heavy ./scripts/data/cap-pcap.sh
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Output PCAP path (can override via env)

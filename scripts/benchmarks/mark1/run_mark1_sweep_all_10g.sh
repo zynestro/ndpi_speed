@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SWEEP_SCRIPT="$ROOT_DIR/scripts/benchmark_sweep_mark1.py"
+SWEEP_SCRIPT="$ROOT_DIR/scripts/benchmarks/mark1/benchmark_sweep_mark1.py"
 PCAP_FILE="$ROOT_DIR/input/seed_10G.pcap"
 BUILD_DIR="$ROOT_DIR/mark1/build"
 OUTPUT_DIR="$ROOT_DIR/output"
