@@ -1,205 +1,308 @@
-# mark4: 执行流程与代码对应（详细版）
+# mark4：当前运行时会测量什么，涉及哪些函数
 
 ## 1. mark4 的定位
 
-`mark4` 是单线程直读版本，去掉了 `reader + worker queue`（以及 mark3 的 dispatcher 层）。
+`mark4` 是单线程直读版本，不走 `reader + worker queue`，也没有 dispatcher。
 
-执行链路就是一条主循环：
+它的主路径就是：
 
-`pcap_next_ex -> normalize -> parse -> flow_table -> ndpi -> 统计/汇总 -> CSV`
+`pcap_next_ex -> normalize_to_ethernet -> parse_ethernet_frame -> flow_table_get_or_create -> ndpi_detection_process_packet -> 汇总输出 -> CSV`
 
-构建目标只包含：
+对应源码：
 
-- `src/main.c`
-- `src/packet_parser.c`
-- `src/flow_table.c`
+- `mark4/src/main.c`
+- `mark4/src/packet_parser.c`
+- `mark4/src/flow_table.c`
 
-## 2. 启动阶段（main）
+## 2. 当前运行时实际测量的内容
 
-对应：`src/main.c`
+mark4 当前真正统计、输出的内容主要分 4 类。
 
-### 2.1 参数解析
+### 2.1 全局包级统计
+
+在主循环里维护这些计数器：
+
+- `total_packets`
+  - 成功从 `pcap_next_ex()` 读到的包数
+- `total_bytes`
+  - 所有读到的包的原始 `hdr->len` 累加
+- `parse_ok_packets`
+  - 成功通过 `parse_ethernet_frame()` 的包数
+- `parse_fail_packets`
+  - 标准化成功，但 L3/L4 解析失败的包数
+- `normalize_fail_packets`
+  - `normalize_to_ethernet()` 失败的包数
+
+这些值最后打印为：
+
+- `Total packets`
+- `Total bytes`
+- `Parse-ok packets`
+- `Parse-fail packets`
+- `Normalize-fail packets`
+
+### 2.2 全局流级统计
+
+主循环中还会统计：
+
+- `flows_created`
+  - 新流数量，也就是 `flow_table_get_or_create()` 返回 `is_new=true` 的次数
+- `flows_detected`
+  - 至少被 nDPI 首次识别成功一次的流数量
+
+最终打印为：
+
+- `Total flows`
+- `Detected flows`
+
+这里的“Detected”定义是：
+
+- 对某条流调用 `ndpi_detection_process_packet()` 后
+- 再通过 `ndpi_get_flow_appprotocol()` 读到的协议不再是 `NDPI_PROTOCOL_UNKNOWN`
+- 并且该流此前还没被计数过
+
+### 2.3 时间开销统计
+
+mark4 当前会统计 3 类时间：
+
+- `Elapsed`
+  - 整次运行的墙钟时间
+- `pcap_read`
+  - 只包住 `pcap_next_ex()` 的累计耗时
+- `process`
+  - 每个包从标准化、解析、建流/查流到 nDPI 识别这段累计耗时
+
+注意：
+
+- `process` 不包含最后的汇总打印和 CSV 写盘
+- `Elapsed` 包含全部阶段，所以通常会大于 `pcap_read + process`
+
+### 2.4 每条已识别流的阶段性处理统计
+
+对于每条首次识别成功的流，mark4 当前会记录的不是“首包到识别成功的墙钟延迟”，而是按识别前后拆分的累计处理时间和包位次：
+
+- `detecting_time_ns_total`
+  - 该 flow 在“首次识别成功之前”累计处理了多少纳秒
+- `post_time_ns_total`
+  - 该 flow 在“首次识别成功之后”累计处理了多少纳秒
+- `detecting_packet_samples_ns`
+  - 识别前每个包的处理耗时样本，用于后续计算 p50/p99
+- `post_packet_samples_ns`
+  - 识别后每个包的处理耗时样本，用于后续计算 p50/p99
+- `detection_packet_in_flow`
+  - 这条流的第几个包被识别出来
+- `detection_packet_global`
+  - 从整份 PCAP 的全局进度看，是在第几个包时识别出来
+- `detected_master_proto`
+  - nDPI master protocol
+- `detected_app_proto`
+  - nDPI app protocol
+- `detected_category`
+  - nDPI category
+
+这些数据会进入：
+
+- 控制台 `Per-flow Detection Details`
+- 控制台 `Category Summary`
+- 控制台 `Proto+Category Summary`
+- `proto_category_summary.csv`
+
+## 3. 它没有单独测量什么
+
+为了避免误解，这几个点当前 **没有被单独拆出来统计**：
+
+- 没有单独统计 `normalize_to_ethernet()` 自己的耗时
+- 没有单独统计 `parse_ethernet_frame()` 自己的耗时
+- 没有单独统计 `flow_table_get_or_create()` 的耗时
+- 没有单独统计 `ndpi_detection_process_packet()` 的耗时
+- 没有输出 PPS / Gbps / 每流平均包数
+- 没有输出未识别流的协议分布
+- 没有把 EOF 后的聚合打印、`qsort()`、CSV 落盘时间单独计入 `process`
+
+所以它更像是一个：
+
+- 单线程端到端基线 benchmark
+- 外加“协议识别前后处理成本”观测器
+
+## 4. 运行时会经过哪些关键函数
+
+下面按实际执行顺序列出。
+
+### 4.1 启动与初始化
+
+对应 `mark4/src/main.c`
 
 - `parse_args()`
-  - 必选：`-i <pcap>`
-  - 可选：`-c/-p/-o/-q`
-  - `-o` 为输出根目录（默认 `output`）
+- `make_timestamp()`
+- `mkdir_p()`
+- `set_thread_affinity()`，仅当传了 `-c`
+- `ndpi_global_init()`
+- `ndpi_init_detection_module()`
+- `ndpi_set_config()`
+- `ndpi_load_protocols_file()`，仅当传了 `-p`
+- `ndpi_finalize_initialization()`
+- `flow_table_create()`
+- `pcap_open_offline()`
+- `pcap_datalink()`
 
-### 2.2 输出目录准备
+### 4.2 每个包的热路径函数
 
-- `make_timestamp()` 生成 `YYYYMMDD_HHMMSS`
-- `mkdir_p()` 创建 `output/<timestamp>/`
-- 目标 CSV 路径：`proto_category_summary.csv`
+对应 `mark4/src/main.c`、`mark4/src/packet_parser.c`、`mark4/src/flow_table.c`
 
-### 2.3 初始化 nDPI 与 flow table
+每个包都会经过这些关键函数：
 
-1. `ndpi_global_init()`
-2. `ndpi_init_detection_module(g_ctx)`
-3. `ndpi_set_config(... tcp_ack_payload_heuristic ...)`
-4. 可选 `ndpi_load_protocols_file(...)`
-5. `ndpi_finalize_initialization(...)`
-6. `flow_table_create(16384)`
+1. `pcap_next_ex()`
+2. `normalize_to_ethernet()`
+3. `parse_ethernet_frame()`
+4. `flow_key_from_packet()`
+5. `flow_key_hash()`
+6. `flow_table_get_or_create()`
+7. 新流时额外执行：
+   - `ndpi_calloc()`
+   - `set_ndpi_flow_tuple()`
+8. `endpoint_equal()`
+9. `ndpi_detection_process_packet()`
+10. 若尚未识别成功，则继续检查：
+   - `ndpi_get_flow_appprotocol()`
+   - `ndpi_get_flow_masterprotocol()`
+   - `ndpi_get_flow_category()`
 
-### 2.4 打开 PCAP
+### 4.3 `packet_parser.c` 内部会走到的函数
 
-- `pcap_open_offline(...)`
-- 获取 `linktype = pcap_datalink(pc)`
+- `normalize_to_ethernet()`
+  - 支持 `DLT_EN10MB`
+  - 支持 `DLT_NULL / DLT_LOOP`
+  - 支持 `DLT_RAW`
+  - 支持 `DLT_LINUX_SLL`
+  - 支持 `DLT_LINUX_SLL2`
+- `parse_ethernet_frame()`
+  - 解析 Ethernet / VLAN / QinQ
+  - 解析 IPv4
+  - 解析 IPv6
+  - 提取 TCP / UDP 端口
+- `parse_ipv6_find_l4()`
+  - 处理 IPv6 扩展头定位
+- `flow_key_from_packet()`
+  - 生成双向 canonical flow key
+- `endpoint_equal()`
+  - 判断当前包方向
 
-## 3. 单线程主循环（核心）
+### 4.4 `flow_table.c` 内部会走到的函数
 
-对应：`src/main.c` 的 `while (1)` 循环
+- `flow_table_create()`
+- `flow_table_get_or_create()`
+- `flow_key_hash()`
+- `fnv1a64()`
+- `flow_table_rehash()`，当负载升高时触发
+- `flow_table_foreach()`，结束后做汇总时使用
+- `flow_table_destroy()`
 
-每个包执行：
+说明：
 
-1. `pcap_next_ex` 读包
-2. `normalize_to_ethernet(...)`
-3. `parse_ethernet_frame(...)`
-4. `flow_key_from_packet(...)`
-5. `flow_table_get_or_create(...)`
-6. 若新流：
-   - 初始化 `bench_flow_t`
-   - 分配 `flow->ndpi_flow = ndpi_calloc(...)`
-   - `set_ndpi_flow_tuple(...)`
-7. 更新流向统计（c2s/s2c 包数字节）
-8. 调 `ndpi_detection_process_packet(...)`
-9. 若该流首次识别成功：
-   - `ndpi_get_flow_appprotocol(...)`
-   - 记录：
-     - `detected_app_proto/master_proto/category`
-     - `detection_packet_in_flow`
-     - `detection_packet_global`
-     - `detection_latency_ns`
+- `flow_table_delete()` 和 `compute_flow_hash()` 当前 `mark4` 主流程没有用到
 
-主循环同时累计：
+## 5. 运行结束后会输出什么
 
-- `total_packets/total_bytes`
-- `parse_ok/parse_fail/normalize_fail`
-- `flows_created/flows_detected`
-- `pcap_read_ns/process_ns`
+### 5.1 控制台总览
 
-## 4. 流表与解析模块职责
+固定会输出：
 
-### 4.1 `src/packet_parser.c`
-
-- `normalize_to_ethernet`：
-  - 统一 DLT 差异（EN10MB/NULL/LOOP/RAW）
-- `parse_ethernet_frame`：
-  - 解析 IPv4/IPv6 + TCP/UDP
-- `flow_key_from_packet`：
-  - 构造双向规范化 flow key
-
-### 4.2 `src/flow_table.c`
-
-- `flow_table_get_or_create`：开放寻址哈希表热路径
-- `flow_key_hash`：FNV-1a
-- `flow_table_foreach`：后处理聚合遍历
-
-## 5. 后处理与输出阶段
-
-主循环结束后（`main.c`）：
-
-### 5.1 总览输出
-
-- 总包数/总字节/解析失败
-- 总流数/识别流占比
+- `Total packets`
+- `Total bytes`
+- `Parse-ok packets`
+- `Parse-fail packets`
+- `Normalize-fail packets`
+- `Total flows`
+- `Detected flows`
 - `Elapsed | pcap_read | process`
 
-### 5.2 逐流明细（非 `-q`）
+### 5.2 Per-flow 明细
+
+只有未开启 `-q` 时才输出：
 
 - `flow_table_foreach(..., print_flow_cb, ...)`
-- 每条流打印：
-  - client/server endpoint
-  - proto/category
-  - detect_latency
-  - detect_pkt(flow/global)
 
-### 5.3 分类汇总
+每条流会显示：
+
+- `client/server endpoint`
+- `proto`
+- `category`
+- `flow_detecting`
+- `flow_post`
+- `flow_total`
+- `detect_pkt(flow)`
+- `detect_pkt(global)`
+
+### 5.3 Category Summary
+
+通过：
 
 - `flow_table_foreach(..., aggregate_category_cb, ...)`
-- 输出 `Category Summary`
 
-### 5.4 协议+分类汇总
+按 `category` 聚合输出：
+
+- `flows`
+- `avg_flow_detecting`
+- `avg_flow_post`
+- `avg_flow_total`
+- `avg_detect_pkt(flow)`
+- `avg_detect_pkt(global)`
+
+### 5.4 Proto+Category Summary
+
+通过：
 
 - `flow_table_foreach(..., aggregate_proto_cb, ...)`
-- `qsort(proto_ctx.items, ..., proto_stat_cmp_desc)`
-- 输出 `Proto+Category Summary`
+- `qsort(..., proto_stat_cmp_desc)`
 
-### 5.5 CSV 落盘
+按 `(master_proto, app_proto, category)` 聚合输出：
 
-- `write_proto_summary_csv(csv_path, ndpi, proto_stats, count)`
-- 字段：
-  - `proto_name/master_proto/app_proto`
-  - `category_name/category_id`
-  - `flows`
-  - `avg_detect_latency_ms`
-  - `avg_detect_pkt_flow`
-  - `avg_detect_pkt_global`
+- `flows`
+- `avg_flow_detecting`
+- `avg_flow_post`
+- `avg_flow_total`
+- `detecting_pkt_p50`
+- `detecting_pkt_p99`
+- `post_pkt_p50`
+- `post_pkt_p99`
+- `avg_detect_pkt(flow)`
+- `avg_detect_pkt(global)`
 
-## 6. 资源回收阶段
+### 5.5 CSV 文件
 
-按顺序：
+输出文件：
 
-1. `pcap_close(pc)`
-2. `flow_table_destroy(..., free_flow_cb, ...)`
-3. `ndpi_exit_detection_module(ndpi)`
-4. `ndpi_global_deinit(g_ctx)`
+- `output/<timestamp>/proto_category_summary.csv`
 
-## 7. 运行示例
+写文件函数：
 
-```bash
-./mark4/build/ndpiBenchmarkMark4 -i /path/to/xx.pcap -q
-```
+- `write_proto_summary_csv()`
 
-输出目录示例：
+CSV 列如下：
 
-- `output/20260323_224756/proto_category_summary.csv`
+- `proto_name`
+- `master_proto`
+- `app_proto`
+- `category_name`
+- `category_id`
+- `flows`
+- `avg_flow_detecting_ms`
+- `avg_flow_post_ms`
+- `avg_flow_total_ms`
+- `detecting_pkt_p50_us`
+- `detecting_pkt_p99_us`
+- `post_pkt_p50_us`
+- `post_pkt_p99_us`
+- `avg_detect_pkt_flow`
+- `avg_detect_pkt_global`
 
-## 8. 输出结果怎么看（重点）
+## 6. 一句总结
 
-### 8.1 先看控制台总览
+当前 mark4 跑起来，本质上测的是：
 
-运行结束会先给一组总览指标：
+- 单线程从 PCAP 读包到 nDPI 首次识别成功的端到端处理过程
+- 全局包/流统计
+- 每条已识别流在“识别前”和“识别后”分别累计花了多少处理时间，以及第几个包识别成功
+- 按 category、proto+category 的识别结果聚合
 
-- `Total packets / Total bytes`：PCAP 中总包量与总字节。
-- `Parse-ok / Parse-fail / Normalize-fail`：
-  - `Normalize-fail` 高：通常是链路层类型不支持或包截断。
-  - `Parse-fail` 高：说明已标准化但 L3/L4 解析失败。
-- `Total flows`：成功建流数量。
-- `Detected flows`：至少识别出一次协议的流数量与占比。
-- `Elapsed | pcap_read | process`：
-  - `pcap_read` 偏高：I/O 或 pcap 读取开销大。
-  - `process` 偏高：解析/flow_table/nDPI 计算开销大。
-
-### 8.2 CSV 每一列含义（`proto_category_summary.csv`）
-
-每一行代表一个分组：`(proto_name, master_proto, app_proto, category_name)`。
-
-- `proto_name`：协议名（如 `DNS`、`HTTP_Connect.Github`）。
-- `master_proto/app_proto`：nDPI 主协议 ID / 应用协议 ID。
-- `category_name/category_id`：nDPI 分类名与分类 ID。
-- `flows`：该分组下的流数量（不是包数量）。
-- `avg_detect_latency_ms`：该分组流从首包到“首次识别成功”的平均时延（毫秒）。
-- `avg_detect_pkt_flow`：平均每条流在第几包被识别（值越小越快）。
-- `avg_detect_pkt_global`：在全局处理进度中，平均到第几包时识别（更偏时间位置，不是单流难度）。
-
-### 8.3 “横坐标分别是啥？”
-
-这个 CSV 本身是“汇总表”，没有天然横坐标；你画图时自己定义：
-
-- 看协议分布：`x = proto_name`，`y = flows`
-- 看识别速度（时延）：`x = proto_name`，`y = avg_detect_latency_ms`
-- 看识别速度（包数）：`x = proto_name`，`y = avg_detect_pkt_flow`
-- 若协议太多，建议只画 `flows` Top-N（如前 10 或前 15）
-
-控制台中的 `Category Summary` / `Proto+Category Summary` 也是分组统计，不是时间序列图，因此也没有固定横坐标。
-
-### 8.4 结合你这份样例怎么解读
-
-你贴的结果可以读出这些关键信息：
-
-- `DNS` 流最多（`7099`），且 `avg_detect_pkt_flow = 1.0`，说明 DNS 基本首包即识别。
-- `HTTP`（Web）`873` 流、`avg_detect_pkt_flow ≈ 4.82`，识别通常需要前几包。
-- `MySQL` `252` 流、`avg_detect_pkt_flow = 7.0`，比 DNS/HTTP 更靠后识别。
-- `HTTP_Connect.*`（Microsoft365/Github/Azure）存在，说明抓包里确实有较多 TLS 隧道/代理场景。
-- `SSH` 只有 `15` 流，符合你脚本里 SSH 生成次数较少的设置。
-- 同一个 `proto_name` 可出现在不同 `category`（例如 `HTTP_Connect` 同时在 `ArtifIntelligence` 和 `Web`），这是 nDPI 在不同流特征下的正常分类结果。
+如果你后面想把 README 再补成“带源码行号的版本”，我也可以继续帮你把每一项后面直接标到具体行号。

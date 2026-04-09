@@ -57,6 +57,12 @@ typedef struct {
 } endpoint_t;
 
 typedef struct {
+  uint64_t *items;
+  size_t count;
+  size_t cap;
+} sample_vec_t;
+
+typedef struct {
   /* 该 flow 的规范化 key（双向统一） */
   flow_key_t key;
 
@@ -75,10 +81,17 @@ typedef struct {
   uint64_t s2c_bytes;
   uint64_t seen_packets;
 
-  /* 协议识别结果与“识别发生时刻”统计 */
+  /* 逐流阶段时间与逐包阶段样本 */
+  uint64_t detecting_time_ns_total;
+  uint64_t post_time_ns_total;
+  uint64_t detecting_packets;
+  uint64_t post_packets;
+  sample_vec_t detecting_packet_samples_ns;
+  sample_vec_t post_packet_samples_ns;
+
+  /* 协议识别结果与识别位置统计 */
   bool protocol_counted;
   uint64_t first_seen_ns;
-  uint64_t detection_latency_ns;
   uint64_t detection_packet_in_flow;
   uint64_t detection_packet_global;
   uint16_t detected_master_proto;

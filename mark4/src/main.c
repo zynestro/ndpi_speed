@@ -77,7 +77,9 @@ typedef struct {
   bool used;
   ndpi_protocol_category_t category;
   uint64_t flow_count;
-  uint64_t sum_detection_ns;
+  uint64_t sum_detecting_flow_ns;
+  uint64_t sum_post_flow_ns;
+  uint64_t sum_total_flow_ns;
   uint64_t sum_detect_pkt_in_flow;
   uint64_t sum_detect_pkt_global;
 } category_stat_t;
@@ -87,9 +89,13 @@ typedef struct {
   uint16_t app_proto;
   ndpi_protocol_category_t category;
   uint64_t flow_count;
-  uint64_t sum_detection_ns;
+  uint64_t sum_detecting_flow_ns;
+  uint64_t sum_post_flow_ns;
+  uint64_t sum_total_flow_ns;
   uint64_t sum_detect_pkt_in_flow;
   uint64_t sum_detect_pkt_global;
+  sample_vec_t detecting_packet_samples_ns;
+  sample_vec_t post_packet_samples_ns;
 } proto_stat_t;
 
 typedef struct {
@@ -115,6 +121,68 @@ typedef struct {
   uint32_t cpu_core;
   bool quiet;
 } benchmark_config_t;
+
+static bool sample_vec_grow(sample_vec_t *vec, size_t min_cap) {
+  if (!vec) return false;
+  if (vec->cap >= min_cap) return true;
+
+  size_t new_cap = (vec->cap == 0) ? 16 : vec->cap;
+  while (new_cap < min_cap) new_cap *= 2;
+
+  uint64_t *new_items = (uint64_t *)realloc(vec->items, new_cap * sizeof(uint64_t));
+  if (!new_items) return false;
+  vec->items = new_items;
+  vec->cap = new_cap;
+  return true;
+}
+
+static bool sample_vec_push(sample_vec_t *vec, uint64_t value) {
+  if (!vec) return false;
+  if (!sample_vec_grow(vec, vec->count + 1)) return false;
+  vec->items[vec->count++] = value;
+  return true;
+}
+
+static bool sample_vec_append(sample_vec_t *dst, const sample_vec_t *src) {
+  if (!dst || !src || src->count == 0) return true;
+  size_t old_count = dst->count;
+  if (!sample_vec_grow(dst, dst->count + src->count)) return false;
+  memcpy(dst->items + old_count, src->items, src->count * sizeof(uint64_t));
+  dst->count += src->count;
+  return true;
+}
+
+static void sample_vec_free(sample_vec_t *vec) {
+  if (!vec) return;
+  free(vec->items);
+  vec->items = NULL;
+  vec->count = 0;
+  vec->cap = 0;
+}
+
+static int uint64_cmp_asc(const void *a, const void *b) {
+  uint64_t va = *(const uint64_t *)a;
+  uint64_t vb = *(const uint64_t *)b;
+  if (va < vb) return -1;
+  if (va > vb) return 1;
+  return 0;
+}
+
+static void sample_vec_sort(sample_vec_t *vec) {
+  if (!vec || vec->count < 2) return;
+  qsort(vec->items, vec->count, sizeof(uint64_t), uint64_cmp_asc);
+}
+
+static uint64_t sample_vec_percentile_sorted(const sample_vec_t *vec, uint32_t pct) {
+  if (!vec || vec->count == 0) return 0;
+  if (pct == 0) return vec->items[0];
+  if (pct >= 100) return vec->items[vec->count - 1];
+
+  size_t rank = (size_t)(((uint64_t)pct * (uint64_t)vec->count + 99ULL) / 100ULL);
+  if (rank == 0) rank = 1;
+  if (rank > vec->count) rank = vec->count;
+  return vec->items[rank - 1];
+}
 
 static void usage(const char *prog) {
   printf("%s - mark4 single-worker direct pcap reader\n\n", prog);
@@ -224,6 +292,8 @@ static void free_flow_cb(bench_flow_t *flow, void *user) {
     ndpi_free_flow(flow->ndpi_flow);
     flow->ndpi_flow = NULL;
   }
+  sample_vec_free(&flow->detecting_packet_samples_ns);
+  sample_vec_free(&flow->post_packet_samples_ns);
   free(flow);
 }
 
@@ -293,9 +363,13 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
         st->app_proto == flow->detected_app_proto &&
         st->category == flow->detected_category) {
       st->flow_count++;
-      st->sum_detection_ns += flow->detection_latency_ns;
+      st->sum_detecting_flow_ns += flow->detecting_time_ns_total;
+      st->sum_post_flow_ns += flow->post_time_ns_total;
+      st->sum_total_flow_ns += (flow->detecting_time_ns_total + flow->post_time_ns_total);
       st->sum_detect_pkt_in_flow += flow->detection_packet_in_flow;
       st->sum_detect_pkt_global += flow->detection_packet_global;
+      (void)sample_vec_append(&st->detecting_packet_samples_ns, &flow->detecting_packet_samples_ns);
+      (void)sample_vec_append(&st->post_packet_samples_ns, &flow->post_packet_samples_ns);
       return;
     }
   }
@@ -307,9 +381,13 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
   dst->app_proto = flow->detected_app_proto;
   dst->category = flow->detected_category;
   dst->flow_count = 1;
-  dst->sum_detection_ns = flow->detection_latency_ns;
+  dst->sum_detecting_flow_ns = flow->detecting_time_ns_total;
+  dst->sum_post_flow_ns = flow->post_time_ns_total;
+  dst->sum_total_flow_ns = flow->detecting_time_ns_total + flow->post_time_ns_total;
   dst->sum_detect_pkt_in_flow = flow->detection_packet_in_flow;
   dst->sum_detect_pkt_global = flow->detection_packet_global;
+  (void)sample_vec_append(&dst->detecting_packet_samples_ns, &flow->detecting_packet_samples_ns);
+  (void)sample_vec_append(&dst->post_packet_samples_ns, &flow->post_packet_samples_ns);
 }
 
 static void csv_write_escaped(FILE *fp, const char *s) {
@@ -324,6 +402,7 @@ static void csv_write_escaped(FILE *fp, const char *s) {
 }
 
 static bool write_proto_summary_csv(const char *csv_path,
+                                    const benchmark_stats_t *summary,
                                     struct ndpi_detection_module_struct *ndpi,
                                     const proto_stat_t *stats,
                                     size_t count) {
@@ -335,7 +414,17 @@ static bool write_proto_summary_csv(const char *csv_path,
   FILE *fp = fopen(csv_path, "w");
   if (!fp) return false;
 
-  fprintf(fp, "proto_name,master_proto,app_proto,category_name,category_id,flows,avg_detect_latency_ms,avg_detect_pkt_flow,avg_detect_pkt_global\n");
+  if (summary) {
+    fprintf(fp, "# summary_key,summary_value\n");
+    fprintf(fp, "# Total packets,%lu\n", (unsigned long)summary->total_packets);
+    fprintf(fp, "# Total bytes,%lu\n", (unsigned long)summary->total_bytes);
+    fprintf(fp, "# Parse-ok packets,%lu\n", (unsigned long)summary->parse_ok_packets);
+    fprintf(fp, "# Parse-fail packets,%lu\n", (unsigned long)summary->parse_fail_packets);
+    fprintf(fp, "# Normalize-fail packets,%lu\n", (unsigned long)summary->normalize_fail_packets);
+    fprintf(fp, "\n");
+  }
+
+  fprintf(fp, "proto_name,master_proto,app_proto,category_name,category_id,flows,avg_flow_detecting_ms,avg_flow_post_ms,avg_flow_total_ms,detecting_pkt_p50_us,detecting_pkt_p99_us,post_pkt_p50_us,post_pkt_p99_us,avg_detect_pkt_flow,avg_detect_pkt_global\n");
   for (size_t i = 0; i < count; i++) {
     const proto_stat_t *st = &stats[i];
     if (st->flow_count == 0) continue;
@@ -348,17 +437,29 @@ static bool write_proto_summary_csv(const char *csv_path,
     ndpi_protocol2name(ndpi, proto, proto_name, (u_int)sizeof(proto_name));
 
     const char *cat_name = category_name(ndpi, st->category);
-    double avg_ms = (double)st->sum_detection_ns / (double)st->flow_count / 1e6;
+    double avg_detecting_ms = (double)st->sum_detecting_flow_ns / (double)st->flow_count / 1e6;
+    double avg_post_ms = (double)st->sum_post_flow_ns / (double)st->flow_count / 1e6;
+    double avg_total_ms = (double)st->sum_total_flow_ns / (double)st->flow_count / 1e6;
     double avg_pkt_flow = (double)st->sum_detect_pkt_in_flow / (double)st->flow_count;
     double avg_pkt_global = (double)st->sum_detect_pkt_global / (double)st->flow_count;
+    double detecting_p50_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 50) / 1e3;
+    double detecting_p99_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 99) / 1e3;
+    double post_p50_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 50) / 1e3;
+    double post_p99_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 99) / 1e3;
 
     csv_write_escaped(fp, proto_name[0] ? proto_name : "(unknown)");
     fprintf(fp, ",%u,%u,", (unsigned)st->master_proto, (unsigned)st->app_proto);
     csv_write_escaped(fp, cat_name);
-    fprintf(fp, ",%u,%lu,%.6f,%.6f,%.6f\n",
+    fprintf(fp, ",%u,%lu,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f\n",
             (unsigned)st->category,
             (unsigned long)st->flow_count,
-            avg_ms,
+            avg_detecting_ms,
+            avg_post_ms,
+            avg_total_ms,
+            detecting_p50_us,
+            detecting_p99_us,
+            post_p50_us,
+            post_p99_us,
             avg_pkt_flow,
             avg_pkt_global);
   }
@@ -382,21 +483,30 @@ static void print_flow_cb(bench_flow_t *flow, void *user) {
   char proto_name[64] = {0};
   ndpi_protocol2name(ctx->ndpi, proto, proto_name, (u_int)sizeof(proto_name));
 
+  double detecting_ms = (double)flow->detecting_time_ns_total / 1e6;
+  double post_ms = (double)flow->post_time_ns_total / 1e6;
+  double total_ms = (double)(flow->detecting_time_ns_total + flow->post_time_ns_total) / 1e6;
+
   if (flow->protocol_counted) {
-    printf("Flow #%lu | %s <-> %s | proto=%s | category=%s | detect_latency=%.3f ms | detect_pkt(flow)=%lu | detect_pkt(global)=%lu\n",
+    printf("Flow #%lu | %s <-> %s | proto=%s | category=%s | flow_detecting=%.3f ms | flow_post=%.3f ms | flow_total=%.3f ms | detect_pkt(flow)=%lu | detect_pkt(global)=%lu\n",
            (unsigned long)ctx->index,
            client,
            server,
            proto_name[0] ? proto_name : "(unknown)",
            category_name(ctx->ndpi, flow->detected_category),
-           (double)flow->detection_latency_ns / 1e6,
+           detecting_ms,
+           post_ms,
+           total_ms,
            (unsigned long)flow->detection_packet_in_flow,
            (unsigned long)flow->detection_packet_global);
   } else {
-    printf("Flow #%lu | %s <-> %s | proto=(NOT_DETECTED) | category=(NOT_DETECTED) | detect_latency=N/A | detect_pkt(flow)=N/A | detect_pkt(global)=N/A\n",
+    printf("Flow #%lu | %s <-> %s | proto=(NOT_DETECTED) | category=(NOT_DETECTED) | flow_detecting=%.3f ms | flow_post=%.3f ms | flow_total=%.3f ms | detect_pkt(flow)=N/A | detect_pkt(global)=N/A\n",
            (unsigned long)ctx->index,
            client,
-           server);
+           server,
+           detecting_ms,
+           post_ms,
+           total_ms);
   }
 }
 
@@ -411,7 +521,9 @@ static void aggregate_category_cb(bench_flow_t *flow, void *user) {
   st->used = true;
   st->category = flow->detected_category;
   st->flow_count++;
-  st->sum_detection_ns += flow->detection_latency_ns;
+  st->sum_detecting_flow_ns += flow->detecting_time_ns_total;
+  st->sum_post_flow_ns += flow->post_time_ns_total;
+  st->sum_total_flow_ns += (flow->detecting_time_ns_total + flow->post_time_ns_total);
   st->sum_detect_pkt_in_flow += flow->detection_packet_in_flow;
   st->sum_detect_pkt_global += flow->detection_packet_global;
 }
@@ -586,6 +698,7 @@ int main(int argc, char **argv) {
       }
 
       uint8_t dir = endpoint_equal(&src_ep, &flow->client) ? 0 : 1;
+      bool was_detected_before_packet = flow->protocol_counted;
       /* 与 mark3 一样，方向由“首包定义 client”规则确定。 */
       if (dir == 0) {
         flow->c2s_packets++;
@@ -619,12 +732,35 @@ int main(int argc, char **argv) {
           flow->detected_category = ndpi_get_flow_category(flow->ndpi_flow);
           flow->detection_packet_in_flow = flow->seen_packets;  /* 第几个同流包识别成功 */
           flow->detection_packet_global = stats.total_packets;
-          flow->detection_latency_ns = get_time_ns() - flow->first_seen_ns; /* 首包到识别成功耗时 */
           stats.flows_detected++;
         }
       }
 
       uint64_t t_proc1 = get_time_ns();
+      uint64_t packet_cost_ns = t_proc1 - t_proc0;
+      if (was_detected_before_packet) {
+        flow->post_time_ns_total += packet_cost_ns;
+        flow->post_packets++;
+        if (!sample_vec_push(&flow->post_packet_samples_ns, packet_cost_ns)) {
+          fprintf(stderr, "Error: sample_vec_push(post) failed\n");
+          pcap_close(pc);
+          flow_table_destroy(flows, free_flow_cb, NULL);
+          ndpi_exit_detection_module(ndpi);
+          ndpi_global_deinit(g_ctx);
+          return 1;
+        }
+      } else {
+        flow->detecting_time_ns_total += packet_cost_ns;
+        flow->detecting_packets++;
+        if (!sample_vec_push(&flow->detecting_packet_samples_ns, packet_cost_ns)) {
+          fprintf(stderr, "Error: sample_vec_push(detecting) failed\n");
+          pcap_close(pc);
+          flow_table_destroy(flows, free_flow_cb, NULL);
+          ndpi_exit_detection_module(ndpi);
+          ndpi_global_deinit(g_ctx);
+          return 1;
+        }
+      }
       stats.process_ns += (t_proc1 - t_proc0);
     } else if (rc == -2) {
       /* EOF：正常结束。 */
@@ -683,15 +819,19 @@ int main(int argc, char **argv) {
   printf("========================================\n");
   for (uint32_t i = 0; i < CATEGORY_BUCKETS; i++) {
     if (!cat_stats[i].used || cat_stats[i].flow_count == 0) continue;
-    double avg_ms = (double)cat_stats[i].sum_detection_ns / (double)cat_stats[i].flow_count / 1e6;
+    double avg_detecting_ms = (double)cat_stats[i].sum_detecting_flow_ns / (double)cat_stats[i].flow_count / 1e6;
+    double avg_post_ms = (double)cat_stats[i].sum_post_flow_ns / (double)cat_stats[i].flow_count / 1e6;
+    double avg_total_ms = (double)cat_stats[i].sum_total_flow_ns / (double)cat_stats[i].flow_count / 1e6;
     double avg_pkt_flow = (double)cat_stats[i].sum_detect_pkt_in_flow / (double)cat_stats[i].flow_count;
     double avg_pkt_global = (double)cat_stats[i].sum_detect_pkt_global / (double)cat_stats[i].flow_count;
 
-    printf("Category=%s (id=%u) | flows=%lu | avg_detect_latency=%.3f ms | avg_detect_pkt(flow)=%.2f | avg_detect_pkt(global)=%.2f\n",
+    printf("Category=%s (id=%u) | flows=%lu | avg_flow_detecting=%.3f ms | avg_flow_post=%.3f ms | avg_flow_total=%.3f ms | avg_detect_pkt(flow)=%.2f | avg_detect_pkt(global)=%.2f\n",
            category_name(ndpi, cat_stats[i].category),
            (unsigned)cat_stats[i].category,
            (unsigned long)cat_stats[i].flow_count,
-           avg_ms,
+           avg_detecting_ms,
+           avg_post_ms,
+           avg_total_ms,
            avg_pkt_flow,
            avg_pkt_global);
   }
@@ -701,6 +841,10 @@ int main(int argc, char **argv) {
   flow_table_foreach(flows, aggregate_proto_cb, &proto_ctx);
   if (proto_ctx.count > 1) {
     qsort(proto_ctx.items, proto_ctx.count, sizeof(proto_stat_t), proto_stat_cmp_desc);
+  }
+  for (size_t i = 0; i < proto_ctx.count; i++) {
+    sample_vec_sort(&proto_ctx.items[i].detecting_packet_samples_ns);
+    sample_vec_sort(&proto_ctx.items[i].post_packet_samples_ns);
   }
 
   printf("\n========================================\n");
@@ -716,28 +860,44 @@ int main(int argc, char **argv) {
     char proto_name[64] = {0};
     ndpi_protocol2name(ndpi, proto, proto_name, (u_int)sizeof(proto_name));
 
-    double avg_ms = (double)st->sum_detection_ns / (double)st->flow_count / 1e6;
+    double avg_detecting_ms = (double)st->sum_detecting_flow_ns / (double)st->flow_count / 1e6;
+    double avg_post_ms = (double)st->sum_post_flow_ns / (double)st->flow_count / 1e6;
+    double avg_total_ms = (double)st->sum_total_flow_ns / (double)st->flow_count / 1e6;
+    double detecting_p50_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 50) / 1e3;
+    double detecting_p99_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 99) / 1e3;
+    double post_p50_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 50) / 1e3;
+    double post_p99_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 99) / 1e3;
     double avg_pkt_flow = (double)st->sum_detect_pkt_in_flow / (double)st->flow_count;
     double avg_pkt_global = (double)st->sum_detect_pkt_global / (double)st->flow_count;
-    printf("Proto=%s (master=%u app=%u) | Category=%s (id=%u) | flows=%lu | avg_detect_latency=%.3f ms | avg_detect_pkt(flow)=%.2f | avg_detect_pkt(global)=%.2f\n",
+    printf("Proto=%s (master=%u app=%u) | Category=%s (id=%u) | flows=%lu | avg_flow_detecting=%.3f ms | avg_flow_post=%.3f ms | avg_flow_total=%.3f ms | detecting_pkt_p50=%.3f us | detecting_pkt_p99=%.3f us | post_pkt_p50=%.3f us | post_pkt_p99=%.3f us | avg_detect_pkt(flow)=%.2f | avg_detect_pkt(global)=%.2f\n",
            proto_name[0] ? proto_name : "(unknown)",
            (unsigned)st->master_proto,
            (unsigned)st->app_proto,
            category_name(ndpi, st->category),
            (unsigned)st->category,
            (unsigned long)st->flow_count,
-           avg_ms,
+           avg_detecting_ms,
+           avg_post_ms,
+           avg_total_ms,
+           detecting_p50_us,
+           detecting_p99_us,
+           post_p50_us,
+           post_p99_us,
            avg_pkt_flow,
            avg_pkt_global);
   }
 
-  if (write_proto_summary_csv(csv_path, ndpi, proto_ctx.items, proto_ctx.count)) {
+  if (write_proto_summary_csv(csv_path, &stats, ndpi, proto_ctx.items, proto_ctx.count)) {
     printf("\nCSV saved: %s\n", csv_path);
   } else {
     fprintf(stderr, "\nWarning: failed to write CSV: %s\n", csv_path);
   }
 
   free(proto_ctx.items);
+  for (size_t i = 0; i < proto_ctx.count; i++) {
+    sample_vec_free(&proto_ctx.items[i].detecting_packet_samples_ns);
+    sample_vec_free(&proto_ctx.items[i].post_packet_samples_ns);
+  }
 
   /* 5) 释放资源。 */
   pcap_close(pc);
