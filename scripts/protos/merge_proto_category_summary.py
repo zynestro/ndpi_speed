@@ -143,7 +143,10 @@ def write_rows(rows: list[dict[str, str]], out_path: Path) -> None:
 
 def resolve_output_path(csv_path: Path, out_path: str) -> Path:
     if out_path:
-        return Path(out_path).resolve()
+        candidate = Path(out_path)
+        if candidate.is_absolute():
+            return candidate.resolve()
+        return (csv_path.parent / candidate).resolve()
     return csv_path.with_name(f"{csv_path.stem}_merged.csv")
 
 
@@ -152,7 +155,11 @@ def main() -> int:
         description="Merge mark4 proto_category_summary.csv by proto_name, then by dotted proto prefix."
     )
     parser.add_argument("--csv", required=True, help="Input proto_category_summary.csv path")
-    parser.add_argument("--out", default="", help="Output CSV path")
+    parser.add_argument(
+        "--out",
+        default="",
+        help="Output CSV path. Relative paths are resolved under the input CSV directory.",
+    )
     args = parser.parse_args()
 
     csv_path = Path(args.csv).resolve()
