@@ -77,11 +77,22 @@ typedef struct {
   bool used;
   ndpi_protocol_category_t category;
   uint64_t flow_count;
+  uint64_t sum_flow_packets;
+  uint64_t sum_flow_bytes;
   uint64_t sum_detecting_flow_ns;
   uint64_t sum_post_flow_ns;
+  uint64_t sum_detecting_detection_flow_ns;
+  uint64_t sum_post_detection_flow_ns;
   uint64_t sum_total_flow_ns;
+  long double sumsq_detecting_flow_ns;
+  long double sumsq_total_flow_ns;
+  uint64_t sum_detecting_packet_ns;
+  uint64_t sum_post_packet_ns;
+  uint64_t sum_detecting_packets;
+  uint64_t sum_post_packets;
   uint64_t sum_detect_pkt_in_flow;
   uint64_t sum_detect_pkt_global;
+  sample_vec_t detect_pkt_in_flow_samples;
 } category_stat_t;
 
 typedef struct {
@@ -89,13 +100,24 @@ typedef struct {
   uint16_t app_proto;
   ndpi_protocol_category_t category;
   uint64_t flow_count;
+  uint64_t sum_flow_packets;
+  uint64_t sum_flow_bytes;
   uint64_t sum_detecting_flow_ns;
   uint64_t sum_post_flow_ns;
+  uint64_t sum_detecting_detection_flow_ns;
+  uint64_t sum_post_detection_flow_ns;
   uint64_t sum_total_flow_ns;
+  long double sumsq_detecting_flow_ns;
+  long double sumsq_total_flow_ns;
+  uint64_t sum_detecting_packet_ns;
+  uint64_t sum_post_packet_ns;
+  uint64_t sum_detecting_packets;
+  uint64_t sum_post_packets;
   uint64_t sum_detect_pkt_in_flow;
   uint64_t sum_detect_pkt_global;
   sample_vec_t detecting_packet_samples_ns;
   sample_vec_t post_packet_samples_ns;
+  sample_vec_t detect_pkt_in_flow_samples;
 } proto_stat_t;
 
 typedef struct {
@@ -353,9 +375,21 @@ static bool proto_stats_grow(proto_aggregate_ctx_t *ctx) {
   return true;
 }
 
+static double variance_from_sums(uint64_t count, uint64_t sum_ns, long double sumsq_ns) {
+  if (count == 0) return 0.0;
+  long double mean_ns = (long double)sum_ns / (long double)count;
+  long double mean_sq_ns = sumsq_ns / (long double)count;
+  long double var_ns2 = mean_sq_ns - mean_ns * mean_ns;
+  if (var_ns2 < 0) var_ns2 = 0;
+  return (double)(var_ns2 / 1e12L);
+}
+
 static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
   proto_aggregate_ctx_t *ctx = (proto_aggregate_ctx_t *)user;
   if (!flow || !ctx || !flow->protocol_counted) return;
+
+  uint64_t flow_total_ns = flow->detecting_time_ns_total + flow->post_time_ns_total;
+  uint64_t flow_bytes = flow->c2s_bytes + flow->s2c_bytes;
 
   for (size_t i = 0; i < ctx->count; i++) {
     proto_stat_t *st = &ctx->items[i];
@@ -363,13 +397,26 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
         st->app_proto == flow->detected_app_proto &&
         st->category == flow->detected_category) {
       st->flow_count++;
+      st->sum_flow_packets += flow->seen_packets;
+      st->sum_flow_bytes += flow_bytes;
       st->sum_detecting_flow_ns += flow->detecting_time_ns_total;
       st->sum_post_flow_ns += flow->post_time_ns_total;
-      st->sum_total_flow_ns += (flow->detecting_time_ns_total + flow->post_time_ns_total);
+      st->sum_detecting_detection_flow_ns += flow->detecting_detection_time_ns_total;
+      st->sum_post_detection_flow_ns += flow->post_detection_time_ns_total;
+      st->sum_total_flow_ns += flow_total_ns;
+      st->sumsq_detecting_flow_ns += (long double)flow->detecting_time_ns_total * (long double)flow->detecting_time_ns_total;
+      st->sumsq_total_flow_ns += (long double)flow_total_ns * (long double)flow_total_ns;
+      st->sum_detecting_packet_ns += flow->detecting_time_ns_total;
+      st->sum_post_packet_ns += flow->post_time_ns_total;
+      st->sum_detecting_packets += flow->detecting_packets;
+      st->sum_post_packets += flow->post_packets;
       st->sum_detect_pkt_in_flow += flow->detection_packet_in_flow;
       st->sum_detect_pkt_global += flow->detection_packet_global;
       (void)sample_vec_append(&st->detecting_packet_samples_ns, &flow->detecting_packet_samples_ns);
       (void)sample_vec_append(&st->post_packet_samples_ns, &flow->post_packet_samples_ns);
+      if (flow->detection_packet_in_flow > 0) {
+        (void)sample_vec_push(&st->detect_pkt_in_flow_samples, flow->detection_packet_in_flow);
+      }
       return;
     }
   }
@@ -381,13 +428,26 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
   dst->app_proto = flow->detected_app_proto;
   dst->category = flow->detected_category;
   dst->flow_count = 1;
+  dst->sum_flow_packets = flow->seen_packets;
+  dst->sum_flow_bytes = flow_bytes;
   dst->sum_detecting_flow_ns = flow->detecting_time_ns_total;
   dst->sum_post_flow_ns = flow->post_time_ns_total;
-  dst->sum_total_flow_ns = flow->detecting_time_ns_total + flow->post_time_ns_total;
+  dst->sum_detecting_detection_flow_ns = flow->detecting_detection_time_ns_total;
+  dst->sum_post_detection_flow_ns = flow->post_detection_time_ns_total;
+  dst->sum_total_flow_ns = flow_total_ns;
+  dst->sumsq_detecting_flow_ns = (long double)flow->detecting_time_ns_total * (long double)flow->detecting_time_ns_total;
+  dst->sumsq_total_flow_ns = (long double)flow_total_ns * (long double)flow_total_ns;
+  dst->sum_detecting_packet_ns = flow->detecting_time_ns_total;
+  dst->sum_post_packet_ns = flow->post_time_ns_total;
+  dst->sum_detecting_packets = flow->detecting_packets;
+  dst->sum_post_packets = flow->post_packets;
   dst->sum_detect_pkt_in_flow = flow->detection_packet_in_flow;
   dst->sum_detect_pkt_global = flow->detection_packet_global;
   (void)sample_vec_append(&dst->detecting_packet_samples_ns, &flow->detecting_packet_samples_ns);
   (void)sample_vec_append(&dst->post_packet_samples_ns, &flow->post_packet_samples_ns);
+  if (flow->detection_packet_in_flow > 0) {
+    (void)sample_vec_push(&dst->detect_pkt_in_flow_samples, flow->detection_packet_in_flow);
+  }
 }
 
 static void csv_write_escaped(FILE *fp, const char *s) {
@@ -424,7 +484,7 @@ static bool write_proto_summary_csv(const char *csv_path,
     fprintf(fp, "\n");
   }
 
-  fprintf(fp, "proto_name,master_proto,app_proto,category_name,category_id,flows,avg_flow_detecting_ms,avg_flow_post_ms,avg_flow_total_ms,detecting_pkt_p50_us,detecting_pkt_p99_us,post_pkt_p50_us,post_pkt_p99_us,avg_detect_pkt_flow,avg_detect_pkt_global\n");
+  fprintf(fp, "proto_name,master_proto,app_proto,category_name,category_id,flows,avg_pkts_per_flow,avg_bytes_per_flow,avg_flow_detecting_ms,var_flow_detecting_ms2,avg_flow_post_ms,avg_flow_total_ms,var_flow_total_ms2,avg_flow_detecting_detection_only_ms,avg_flow_post_detection_only_ms,detecting_pkt_mean_us,detecting_pkt_p50_us,detecting_pkt_p99_us,post_pkt_mean_us,post_pkt_p50_us,post_pkt_p99_us,avg_detect_pkt_flow,detect_pkt_flow_p50,detect_pkt_flow_p99,avg_detect_pkt_global\n");
   for (size_t i = 0; i < count; i++) {
     const proto_stat_t *st = &stats[i];
     if (st->flow_count == 0) continue;
@@ -437,11 +497,25 @@ static bool write_proto_summary_csv(const char *csv_path,
     ndpi_protocol2name(ndpi, proto, proto_name, (u_int)sizeof(proto_name));
 
     const char *cat_name = category_name(ndpi, st->category);
+    double avg_pkts_per_flow = (double)st->sum_flow_packets / (double)st->flow_count;
+    double avg_bytes_per_flow = (double)st->sum_flow_bytes / (double)st->flow_count;
     double avg_detecting_ms = (double)st->sum_detecting_flow_ns / (double)st->flow_count / 1e6;
+    double var_detecting_ms2 = variance_from_sums(st->flow_count, st->sum_detecting_flow_ns, st->sumsq_detecting_flow_ns);
     double avg_post_ms = (double)st->sum_post_flow_ns / (double)st->flow_count / 1e6;
     double avg_total_ms = (double)st->sum_total_flow_ns / (double)st->flow_count / 1e6;
+    double var_total_ms2 = variance_from_sums(st->flow_count, st->sum_total_flow_ns, st->sumsq_total_flow_ns);
+    double avg_detecting_detection_only_ms = (double)st->sum_detecting_detection_flow_ns / (double)st->flow_count / 1e6;
+    double avg_post_detection_only_ms = (double)st->sum_post_detection_flow_ns / (double)st->flow_count / 1e6;
+    double detecting_mean_us = st->sum_detecting_packets
+                                   ? ((double)st->sum_detecting_packet_ns / (double)st->sum_detecting_packets / 1e3)
+                                   : 0.0;
+    double post_mean_us = st->sum_post_packets
+                              ? ((double)st->sum_post_packet_ns / (double)st->sum_post_packets / 1e3)
+                              : 0.0;
     double avg_pkt_flow = (double)st->sum_detect_pkt_in_flow / (double)st->flow_count;
     double avg_pkt_global = (double)st->sum_detect_pkt_global / (double)st->flow_count;
+    double detect_pkt_flow_p50 = (double)sample_vec_percentile_sorted(&st->detect_pkt_in_flow_samples, 50);
+    double detect_pkt_flow_p99 = (double)sample_vec_percentile_sorted(&st->detect_pkt_in_flow_samples, 99);
     double detecting_p50_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 50) / 1e3;
     double detecting_p99_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 99) / 1e3;
     double post_p50_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 50) / 1e3;
@@ -450,17 +524,27 @@ static bool write_proto_summary_csv(const char *csv_path,
     csv_write_escaped(fp, proto_name[0] ? proto_name : "(unknown)");
     fprintf(fp, ",%u,%u,", (unsigned)st->master_proto, (unsigned)st->app_proto);
     csv_write_escaped(fp, cat_name);
-    fprintf(fp, ",%u,%lu,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f\n",
+    fprintf(fp, ",%u,%lu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.3f,%.3f,%.6f\n",
             (unsigned)st->category,
             (unsigned long)st->flow_count,
+            avg_pkts_per_flow,
+            avg_bytes_per_flow,
             avg_detecting_ms,
+            var_detecting_ms2,
             avg_post_ms,
             avg_total_ms,
+            var_total_ms2,
+            avg_detecting_detection_only_ms,
+            avg_post_detection_only_ms,
+            detecting_mean_us,
             detecting_p50_us,
             detecting_p99_us,
+            post_mean_us,
             post_p50_us,
             post_p99_us,
             avg_pkt_flow,
+            detect_pkt_flow_p50,
+            detect_pkt_flow_p99,
             avg_pkt_global);
   }
 
@@ -486,9 +570,11 @@ static void print_flow_cb(bench_flow_t *flow, void *user) {
   double detecting_ms = (double)flow->detecting_time_ns_total / 1e6;
   double post_ms = (double)flow->post_time_ns_total / 1e6;
   double total_ms = (double)(flow->detecting_time_ns_total + flow->post_time_ns_total) / 1e6;
+  double detecting_detection_ms = (double)flow->detecting_detection_time_ns_total / 1e6;
+  double post_detection_ms = (double)flow->post_detection_time_ns_total / 1e6;
 
   if (flow->protocol_counted) {
-    printf("Flow #%lu | %s <-> %s | proto=%s | category=%s | flow_detecting=%.3f ms | flow_post=%.3f ms | flow_total=%.3f ms | detect_pkt(flow)=%lu | detect_pkt(global)=%lu\n",
+    printf("Flow #%lu | %s <-> %s | proto=%s | category=%s | flow_detecting=%.3f ms | flow_post=%.3f ms | flow_total=%.3f ms | detection_only_detecting=%.3f ms | detection_only_post=%.3f ms | detect_pkt(flow)=%lu | detect_pkt(global)=%lu\n",
            (unsigned long)ctx->index,
            client,
            server,
@@ -497,16 +583,20 @@ static void print_flow_cb(bench_flow_t *flow, void *user) {
            detecting_ms,
            post_ms,
            total_ms,
+           detecting_detection_ms,
+           post_detection_ms,
            (unsigned long)flow->detection_packet_in_flow,
            (unsigned long)flow->detection_packet_global);
   } else {
-    printf("Flow #%lu | %s <-> %s | proto=(NOT_DETECTED) | category=(NOT_DETECTED) | flow_detecting=%.3f ms | flow_post=%.3f ms | flow_total=%.3f ms | detect_pkt(flow)=N/A | detect_pkt(global)=N/A\n",
+    printf("Flow #%lu | %s <-> %s | proto=(NOT_DETECTED) | category=(NOT_DETECTED) | flow_detecting=%.3f ms | flow_post=%.3f ms | flow_total=%.3f ms | detection_only_detecting=%.3f ms | detection_only_post=%.3f ms | detect_pkt(flow)=N/A | detect_pkt(global)=N/A\n",
            (unsigned long)ctx->index,
            client,
            server,
            detecting_ms,
            post_ms,
-           total_ms);
+           total_ms,
+           detecting_detection_ms,
+           post_detection_ms);
   }
 }
 
@@ -518,14 +608,29 @@ static void aggregate_category_cb(bench_flow_t *flow, void *user) {
   if (idx >= CATEGORY_BUCKETS) return;
 
   category_stat_t *st = &ctx->cat_stats[idx];
+  uint64_t flow_total_ns = flow->detecting_time_ns_total + flow->post_time_ns_total;
+  uint64_t flow_bytes = flow->c2s_bytes + flow->s2c_bytes;
   st->used = true;
   st->category = flow->detected_category;
   st->flow_count++;
+  st->sum_flow_packets += flow->seen_packets;
+  st->sum_flow_bytes += flow_bytes;
   st->sum_detecting_flow_ns += flow->detecting_time_ns_total;
   st->sum_post_flow_ns += flow->post_time_ns_total;
-  st->sum_total_flow_ns += (flow->detecting_time_ns_total + flow->post_time_ns_total);
+  st->sum_detecting_detection_flow_ns += flow->detecting_detection_time_ns_total;
+  st->sum_post_detection_flow_ns += flow->post_detection_time_ns_total;
+  st->sum_total_flow_ns += flow_total_ns;
+  st->sumsq_detecting_flow_ns += (long double)flow->detecting_time_ns_total * (long double)flow->detecting_time_ns_total;
+  st->sumsq_total_flow_ns += (long double)flow_total_ns * (long double)flow_total_ns;
+  st->sum_detecting_packet_ns += flow->detecting_time_ns_total;
+  st->sum_post_packet_ns += flow->post_time_ns_total;
+  st->sum_detecting_packets += flow->detecting_packets;
+  st->sum_post_packets += flow->post_packets;
   st->sum_detect_pkt_in_flow += flow->detection_packet_in_flow;
   st->sum_detect_pkt_global += flow->detection_packet_global;
+  if (flow->detection_packet_in_flow > 0) {
+    (void)sample_vec_push(&st->detect_pkt_in_flow_samples, flow->detection_packet_in_flow);
+  }
 }
 
 int main(int argc, char **argv) {
@@ -714,12 +819,15 @@ int main(int argc, char **argv) {
       in.in_pkt_dir = dir;
       in.seen_flow_beginning = (flow->seen_packets == 1);
       /* 把当前包喂给 nDPI，识别结果写回 flow->ndpi_flow 内部状态。 */
+      uint64_t t_detect0 = get_time_ns();
       (void)ndpi_detection_process_packet(ndpi,
                                           flow->ndpi_flow,
                                           pp.l3,
                                           pp.l3_len,
                                           flow->last_seen_ms,
                                           &in);
+      uint64_t t_detect1 = get_time_ns();
+      uint64_t detection_cost_ns = t_detect1 - t_detect0;
       /* nDPI 识别不是一次完成，通常需要同流多个包逐步收敛。 */
 
       if (!flow->protocol_counted) {
@@ -740,6 +848,7 @@ int main(int argc, char **argv) {
       uint64_t packet_cost_ns = t_proc1 - t_proc0;
       if (was_detected_before_packet) {
         flow->post_time_ns_total += packet_cost_ns;
+        flow->post_detection_time_ns_total += detection_cost_ns;
         flow->post_packets++;
         if (!sample_vec_push(&flow->post_packet_samples_ns, packet_cost_ns)) {
           fprintf(stderr, "Error: sample_vec_push(post) failed\n");
@@ -751,6 +860,7 @@ int main(int argc, char **argv) {
         }
       } else {
         flow->detecting_time_ns_total += packet_cost_ns;
+        flow->detecting_detection_time_ns_total += detection_cost_ns;
         flow->detecting_packets++;
         if (!sample_vec_push(&flow->detecting_packet_samples_ns, packet_cost_ns)) {
           fprintf(stderr, "Error: sample_vec_push(detecting) failed\n");
@@ -819,20 +929,44 @@ int main(int argc, char **argv) {
   printf("========================================\n");
   for (uint32_t i = 0; i < CATEGORY_BUCKETS; i++) {
     if (!cat_stats[i].used || cat_stats[i].flow_count == 0) continue;
+    double avg_pkts_per_flow = (double)cat_stats[i].sum_flow_packets / (double)cat_stats[i].flow_count;
+    double avg_bytes_per_flow = (double)cat_stats[i].sum_flow_bytes / (double)cat_stats[i].flow_count;
     double avg_detecting_ms = (double)cat_stats[i].sum_detecting_flow_ns / (double)cat_stats[i].flow_count / 1e6;
+    double var_detecting_ms2 = variance_from_sums(cat_stats[i].flow_count, cat_stats[i].sum_detecting_flow_ns, cat_stats[i].sumsq_detecting_flow_ns);
     double avg_post_ms = (double)cat_stats[i].sum_post_flow_ns / (double)cat_stats[i].flow_count / 1e6;
     double avg_total_ms = (double)cat_stats[i].sum_total_flow_ns / (double)cat_stats[i].flow_count / 1e6;
+    double var_total_ms2 = variance_from_sums(cat_stats[i].flow_count, cat_stats[i].sum_total_flow_ns, cat_stats[i].sumsq_total_flow_ns);
+    double avg_detecting_detection_only_ms = (double)cat_stats[i].sum_detecting_detection_flow_ns / (double)cat_stats[i].flow_count / 1e6;
+    double avg_post_detection_only_ms = (double)cat_stats[i].sum_post_detection_flow_ns / (double)cat_stats[i].flow_count / 1e6;
+    double detecting_mean_us = cat_stats[i].sum_detecting_packets
+                                   ? ((double)cat_stats[i].sum_detecting_packet_ns / (double)cat_stats[i].sum_detecting_packets / 1e3)
+                                   : 0.0;
+    double post_mean_us = cat_stats[i].sum_post_packets
+                              ? ((double)cat_stats[i].sum_post_packet_ns / (double)cat_stats[i].sum_post_packets / 1e3)
+                              : 0.0;
     double avg_pkt_flow = (double)cat_stats[i].sum_detect_pkt_in_flow / (double)cat_stats[i].flow_count;
+    double detect_pkt_flow_p50 = (double)sample_vec_percentile_sorted(&cat_stats[i].detect_pkt_in_flow_samples, 50);
+    double detect_pkt_flow_p99 = (double)sample_vec_percentile_sorted(&cat_stats[i].detect_pkt_in_flow_samples, 99);
     double avg_pkt_global = (double)cat_stats[i].sum_detect_pkt_global / (double)cat_stats[i].flow_count;
 
-    printf("Category=%s (id=%u) | flows=%lu | avg_flow_detecting=%.3f ms | avg_flow_post=%.3f ms | avg_flow_total=%.3f ms | avg_detect_pkt(flow)=%.2f | avg_detect_pkt(global)=%.2f\n",
+    printf("Category=%s (id=%u) | flows=%lu | avg_pkts_per_flow=%.2f | avg_bytes_per_flow=%.2f | avg_flow_detecting=%.3f ms | var_flow_detecting=%.6f ms^2 | avg_flow_post=%.3f ms | avg_flow_total=%.3f ms | var_flow_total=%.6f ms^2 | avg_flow_detecting_detection_only=%.3f ms | avg_flow_post_detection_only=%.3f ms | detecting_pkt_mean=%.3f us | post_pkt_mean=%.3f us | avg_detect_pkt(flow)=%.2f | detect_pkt_flow_p50=%.0f | detect_pkt_flow_p99=%.0f | avg_detect_pkt(global)=%.2f\n",
            category_name(ndpi, cat_stats[i].category),
            (unsigned)cat_stats[i].category,
            (unsigned long)cat_stats[i].flow_count,
+           avg_pkts_per_flow,
+           avg_bytes_per_flow,
            avg_detecting_ms,
+           var_detecting_ms2,
            avg_post_ms,
            avg_total_ms,
+           var_total_ms2,
+           avg_detecting_detection_only_ms,
+           avg_post_detection_only_ms,
+           detecting_mean_us,
+           post_mean_us,
            avg_pkt_flow,
+           detect_pkt_flow_p50,
+           detect_pkt_flow_p99,
            avg_pkt_global);
   }
 
@@ -845,6 +979,7 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < proto_ctx.count; i++) {
     sample_vec_sort(&proto_ctx.items[i].detecting_packet_samples_ns);
     sample_vec_sort(&proto_ctx.items[i].post_packet_samples_ns);
+    sample_vec_sort(&proto_ctx.items[i].detect_pkt_in_flow_samples);
   }
 
   printf("\n========================================\n");
@@ -860,30 +995,54 @@ int main(int argc, char **argv) {
     char proto_name[64] = {0};
     ndpi_protocol2name(ndpi, proto, proto_name, (u_int)sizeof(proto_name));
 
+    double avg_pkts_per_flow = (double)st->sum_flow_packets / (double)st->flow_count;
+    double avg_bytes_per_flow = (double)st->sum_flow_bytes / (double)st->flow_count;
     double avg_detecting_ms = (double)st->sum_detecting_flow_ns / (double)st->flow_count / 1e6;
+    double var_detecting_ms2 = variance_from_sums(st->flow_count, st->sum_detecting_flow_ns, st->sumsq_detecting_flow_ns);
     double avg_post_ms = (double)st->sum_post_flow_ns / (double)st->flow_count / 1e6;
     double avg_total_ms = (double)st->sum_total_flow_ns / (double)st->flow_count / 1e6;
+    double var_total_ms2 = variance_from_sums(st->flow_count, st->sum_total_flow_ns, st->sumsq_total_flow_ns);
+    double avg_detecting_detection_only_ms = (double)st->sum_detecting_detection_flow_ns / (double)st->flow_count / 1e6;
+    double avg_post_detection_only_ms = (double)st->sum_post_detection_flow_ns / (double)st->flow_count / 1e6;
+    double detecting_mean_us = st->sum_detecting_packets
+                                   ? ((double)st->sum_detecting_packet_ns / (double)st->sum_detecting_packets / 1e3)
+                                   : 0.0;
+    double post_mean_us = st->sum_post_packets
+                              ? ((double)st->sum_post_packet_ns / (double)st->sum_post_packets / 1e3)
+                              : 0.0;
     double detecting_p50_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 50) / 1e3;
     double detecting_p99_us = (double)sample_vec_percentile_sorted(&st->detecting_packet_samples_ns, 99) / 1e3;
     double post_p50_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 50) / 1e3;
     double post_p99_us = (double)sample_vec_percentile_sorted(&st->post_packet_samples_ns, 99) / 1e3;
     double avg_pkt_flow = (double)st->sum_detect_pkt_in_flow / (double)st->flow_count;
+    double detect_pkt_flow_p50 = (double)sample_vec_percentile_sorted(&st->detect_pkt_in_flow_samples, 50);
+    double detect_pkt_flow_p99 = (double)sample_vec_percentile_sorted(&st->detect_pkt_in_flow_samples, 99);
     double avg_pkt_global = (double)st->sum_detect_pkt_global / (double)st->flow_count;
-    printf("Proto=%s (master=%u app=%u) | Category=%s (id=%u) | flows=%lu | avg_flow_detecting=%.3f ms | avg_flow_post=%.3f ms | avg_flow_total=%.3f ms | detecting_pkt_p50=%.3f us | detecting_pkt_p99=%.3f us | post_pkt_p50=%.3f us | post_pkt_p99=%.3f us | avg_detect_pkt(flow)=%.2f | avg_detect_pkt(global)=%.2f\n",
+    printf("Proto=%s (master=%u app=%u) | Category=%s (id=%u) | flows=%lu | avg_pkts_per_flow=%.2f | avg_bytes_per_flow=%.2f | avg_flow_detecting=%.3f ms | var_flow_detecting=%.6f ms^2 | avg_flow_post=%.3f ms | avg_flow_total=%.3f ms | var_flow_total=%.6f ms^2 | avg_flow_detecting_detection_only=%.3f ms | avg_flow_post_detection_only=%.3f ms | detecting_pkt_mean=%.3f us | detecting_pkt_p50=%.3f us | detecting_pkt_p99=%.3f us | post_pkt_mean=%.3f us | post_pkt_p50=%.3f us | post_pkt_p99=%.3f us | avg_detect_pkt(flow)=%.2f | detect_pkt_flow_p50=%.0f | detect_pkt_flow_p99=%.0f | avg_detect_pkt(global)=%.2f\n",
            proto_name[0] ? proto_name : "(unknown)",
            (unsigned)st->master_proto,
            (unsigned)st->app_proto,
            category_name(ndpi, st->category),
            (unsigned)st->category,
            (unsigned long)st->flow_count,
+           avg_pkts_per_flow,
+           avg_bytes_per_flow,
            avg_detecting_ms,
+           var_detecting_ms2,
            avg_post_ms,
            avg_total_ms,
+           var_total_ms2,
+           avg_detecting_detection_only_ms,
+           avg_post_detection_only_ms,
+           detecting_mean_us,
            detecting_p50_us,
            detecting_p99_us,
+           post_mean_us,
            post_p50_us,
            post_p99_us,
            avg_pkt_flow,
+           detect_pkt_flow_p50,
+           detect_pkt_flow_p99,
            avg_pkt_global);
   }
 
@@ -893,10 +1052,14 @@ int main(int argc, char **argv) {
     fprintf(stderr, "\nWarning: failed to write CSV: %s\n", csv_path);
   }
 
-  free(proto_ctx.items);
   for (size_t i = 0; i < proto_ctx.count; i++) {
     sample_vec_free(&proto_ctx.items[i].detecting_packet_samples_ns);
     sample_vec_free(&proto_ctx.items[i].post_packet_samples_ns);
+    sample_vec_free(&proto_ctx.items[i].detect_pkt_in_flow_samples);
+  }
+  free(proto_ctx.items);
+  for (uint32_t i = 0; i < CATEGORY_BUCKETS; i++) {
+    sample_vec_free(&cat_stats[i].detect_pkt_in_flow_samples);
   }
 
   /* 5) 释放资源。 */

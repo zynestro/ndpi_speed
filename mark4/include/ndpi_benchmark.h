@@ -84,6 +84,8 @@ typedef struct {
   /* 逐流阶段时间与逐包阶段样本 */
   uint64_t detecting_time_ns_total;
   uint64_t post_time_ns_total;
+  uint64_t detecting_detection_time_ns_total;
+  uint64_t post_detection_time_ns_total;
   uint64_t detecting_packets;
   uint64_t post_packets;
   sample_vec_t detecting_packet_samples_ns;
