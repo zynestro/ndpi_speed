@@ -64,6 +64,8 @@ typedef struct {
   size_t cap;
 } sample_vec_t;
 
+#define MARK5_FIRST_PACKET_SAMPLES 20
+
 typedef struct {
   /* 该 flow 的规范化 key（双向统一） */
   flow_key_t key;
@@ -96,10 +98,40 @@ typedef struct {
   uint64_t post_time_ns_total;
   uint64_t detecting_detection_time_ns_total;
   uint64_t post_detection_time_ns_total;
+  uint64_t detecting_flow_table_time_ns_total;
+  uint64_t post_flow_table_time_ns_total;
+  uint64_t detecting_bytes_total;
   uint64_t detecting_packets;
   uint64_t post_packets;
   sample_vec_t detecting_packet_samples_ns;
   sample_vec_t post_packet_samples_ns;
+
+#if defined(MARK5_PROFILE_TIME)
+  uint8_t first_packet_time_sample_count;
+  uint64_t first_packet_total_ns[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_detection_ns[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_flow_table_ns[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_other_ns[MARK5_FIRST_PACKET_SAMPLES];
+#endif
+
+#if defined(MARK5_PROFILE_HW)
+  uint64_t detecting_instructions_total;
+  uint64_t post_instructions_total;
+  uint64_t detecting_cycles_total;
+  uint64_t post_cycles_total;
+  uint64_t detecting_llc_misses_total;
+  uint64_t post_llc_misses_total;
+  uint64_t detecting_llc_refs_total;
+  uint64_t post_llc_refs_total;
+  uint64_t detecting_branch_misses_total;
+  uint64_t post_branch_misses_total;
+  uint8_t first_packet_hw_sample_count;
+  uint64_t first_packet_instructions[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_cycles[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_llc_misses[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_llc_refs[MARK5_FIRST_PACKET_SAMPLES];
+  uint64_t first_packet_branch_misses[MARK5_FIRST_PACKET_SAMPLES];
+#endif
 
   /* 协议识别结果与识别位置统计 */
   bool protocol_counted;

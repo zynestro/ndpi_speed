@@ -27,6 +27,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <unistd.h>
+
+#if defined(MARK5_PROFILE_HW)
+#include <linux/perf_event.h>
+#include <sys/ioctl.h>
+#endif
 
 #endif

@@ -1,308 +1,286 @@
-# mark4：当前运行时会测量什么，涉及哪些函数
+# mark5
 
-## 1. mark4 的定位
+`mark5` 是在 `mark4` 单线程直读骨架上继续演进出来的 profiling 版本，核心目标是把：
 
-`mark4` 是单线程直读版本，不走 `reader + worker queue`，也没有 dispatcher。
+- 首包签名
+- 识别前的处理成本
+- 协议级平均画像
 
-它的主路径就是：
+统一落成可直接做分析和调度建模的 CSV。
 
-`pcap_next_ex -> normalize_to_ethernet -> parse_ethernet_frame -> flow_table_get_or_create -> ndpi_detection_process_packet -> 汇总输出 -> CSV`
+当前实现采用“共享主逻辑 + 两个可执行文件”的方式：
 
-对应源码：
+- `ndpiBenchmarkMark5Time`
+  - 只测时间相关成本
+- `ndpiBenchmarkMark5Hardware`
+  - 只测硬件计数器
 
-- `mark4/src/main.c`
-- `mark4/src/packet_parser.c`
-- `mark4/src/flow_table.c`
+这样做的原因是：时间测量和 PMU 测量的探针开销、解释口径都不一样，拆开跑更干净，也更适合后面做论文分析。
 
-## 2. 当前运行时实际测量的内容
+## 1. 主流程
 
-mark4 当前真正统计、输出的内容主要分 4 类。
+两个可执行文件共享同一套主路径：
 
-### 2.1 全局包级统计
+`pcap_next_ex -> normalize_to_ethernet -> parse_ethernet_frame -> flow_table_get_or_create -> ndpi_detection_process_packet -> per-flow accumulate -> per-protocol aggregate -> CSV`
 
-在主循环里维护这些计数器：
+执行时：
 
-- `total_packets`
-  - 成功从 `pcap_next_ex()` 读到的包数
-- `total_bytes`
-  - 所有读到的包的原始 `hdr->len` 累加
-- `parse_ok_packets`
-  - 成功通过 `parse_ethernet_frame()` 的包数
-- `parse_fail_packets`
-  - 标准化成功，但 L3/L4 解析失败的包数
-- `normalize_fail_packets`
-  - `normalize_to_ethernet()` 失败的包数
+1. 逐包读取 pcap
+2. 标准化链路层为 Ethernet 视图
+3. 解析 IP/TCP/UDP 和 payload 前缀
+4. 用 canonical flow key 查/建流表
+5. 调用 nDPI 推进识别
+6. 按“识别前 / 识别后”拆分累计指标
+7. 结束后输出逐流表和按协议聚合表
 
-这些值最后打印为：
+## 2. 输出目录
 
-- `Total packets`
-- `Total bytes`
-- `Parse-ok packets`
-- `Parse-fail packets`
-- `Normalize-fail packets`
+默认输出根目录是仓库级：
 
-### 2.2 全局流级统计
+`ndpi_speed/output`
 
-主循环中还会统计：
+每次运行会新建一个时间戳子目录：
 
-- `flows_created`
-  - 新流数量，也就是 `flow_table_get_or_create()` 返回 `is_new=true` 的次数
-- `flows_detected`
-  - 至少被 nDPI 首次识别成功一次的流数量
+`output/<timestamp>/`
 
-最终打印为：
+时间模式输出：
 
-- `Total flows`
-- `Detected flows`
+- `time_flow_profile.csv`
+- `time_protocol_summary.csv`
 
-这里的“Detected”定义是：
+硬件模式输出：
 
-- 对某条流调用 `ndpi_detection_process_packet()` 后
-- 再通过 `ndpi_get_flow_appprotocol()` 读到的协议不再是 `NDPI_PROTOCOL_UNKNOWN`
-- 并且该流此前还没被计数过
+- `hardware_flow_profile.csv`
+- `hardware_protocol_summary.csv`
 
-### 2.3 时间开销统计
+## 3. 两个可执行文件
 
-mark4 当前会统计 3 类时间：
+### 3.1 时间模式
 
-- `Elapsed`
-  - 整次运行的墙钟时间
-- `pcap_read`
-  - 只包住 `pcap_next_ex()` 的累计耗时
-- `process`
-  - 每个包从标准化、解析、建流/查流到 nDPI 识别这段累计耗时
+构建目标：
 
-注意：
+- `mark5/build/ndpiBenchmarkMark5Time`
 
-- `process` 不包含最后的汇总打印和 CSV 写盘
-- `Elapsed` 包含全部阶段，所以通常会大于 `pcap_read + process`
+作用：
 
-### 2.4 每条已识别流的阶段性处理统计
+- 统计每条流在“首次识别成功前”的总时间
+- 拆出 `detection-only` 时间
+- 拆出 `flow-table` 时间
+- 用减法得到 `other` 时间
+- 记录前 20 包逐包时间样本
 
-对于每条首次识别成功的流，mark4 当前会记录的不是“首包到识别成功的墙钟延迟”，而是按识别前后拆分的累计处理时间和包位次：
+### 3.2 硬件模式
 
-- `detecting_time_ns_total`
-  - 该 flow 在“首次识别成功之前”累计处理了多少纳秒
-- `post_time_ns_total`
-  - 该 flow 在“首次识别成功之后”累计处理了多少纳秒
-- `detecting_packet_samples_ns`
-  - 识别前每个包的处理耗时样本，用于后续计算 p50/p99
-- `post_packet_samples_ns`
-  - 识别后每个包的处理耗时样本，用于后续计算 p50/p99
-- `detection_packet_in_flow`
-  - 这条流的第几个包被识别出来
-- `detection_packet_global`
-  - 从整份 PCAP 的全局进度看，是在第几个包时识别出来
-- `detected_master_proto`
-  - nDPI master protocol
-- `detected_app_proto`
-  - nDPI app protocol
-- `detected_category`
-  - nDPI category
+构建目标：
 
-这些数据会进入：
+- `mark5/build/ndpiBenchmarkMark5Hardware`
 
-- 控制台 `Per-flow Detection Details`
-- 控制台 `Category Summary`
-- 控制台 `Proto+Category Summary`
-- `proto_category_summary.csv`
+作用：
 
-## 3. 它没有单独测量什么
+- 用 `perf_event_open` 打开两组 PMU 事件
+- 每包前后各读一次 group，得到增量
+- 累加识别前的：
+  - instructions
+  - cycles
+  - LLC misses
+  - LLC references
+  - branch misses
+- 记录前 20 包逐包硬件样本
 
-为了避免误解，这几个点当前 **没有被单独拆出来统计**：
+当前事件配置：
 
-- 没有单独统计 `normalize_to_ethernet()` 自己的耗时
-- 没有单独统计 `parse_ethernet_frame()` 自己的耗时
-- 没有单独统计 `flow_table_get_or_create()` 的耗时
-- 没有单独统计 `ndpi_detection_process_packet()` 的耗时
-- 没有输出 PPS / Gbps / 每流平均包数
-- 没有输出未识别流的协议分布
-- 没有把 EOF 后的聚合打印、`qsort()`、CSV 落盘时间单独计入 `process`
+- work group:
+  - `instructions`
+  - `cpu cycles`
+- bottleneck group:
+  - `llc misses`
+  - `llc references`
+  - `branch misses`
 
-所以它更像是一个：
+事件全程使用：
 
-- 单线程端到端基线 benchmark
-- 外加“协议识别前后处理成本”观测器
+- `exclude_kernel = 1`
+- `exclude_hv = 1`
 
-## 4. 运行时会经过哪些关键函数
+### 3.3 硬件模式的权限要求
 
-下面按实际执行顺序列出。
+硬件模式依赖 Linux perf 权限。
 
-### 4.1 启动与初始化
+如果系统的：
 
-对应 `mark4/src/main.c`
+- `/proc/sys/kernel/perf_event_paranoid`
 
-- `parse_args()`
-- `make_timestamp()`
-- `mkdir_p()`
-- `set_thread_affinity()`，仅当传了 `-c`
-- `ndpi_global_init()`
-- `ndpi_init_detection_module()`
-- `ndpi_set_config()`
-- `ndpi_load_protocols_file()`，仅当传了 `-p`
-- `ndpi_finalize_initialization()`
-- `flow_table_create()`
-- `pcap_open_offline()`
-- `pcap_datalink()`
+设置过高（例如 `4`），普通用户会收到：
 
-### 4.2 每个包的热路径函数
+- `perf_event_open(...) failed: Permission denied`
 
-对应 `mark4/src/main.c`、`mark4/src/packet_parser.c`、`mark4/src/flow_table.c`
+这种情况下需要：
 
-每个包都会经过这些关键函数：
+- 降低 `perf_event_paranoid`
+- 或者给进程 `CAP_PERFMON`
+- 或者以有权限的用户运行
 
-1. `pcap_next_ex()`
-2. `normalize_to_ethernet()`
-3. `parse_ethernet_frame()`
-4. `flow_key_from_packet()`
-5. `flow_key_hash()`
-6. `flow_table_get_or_create()`
-7. 新流时额外执行：
-   - `ndpi_calloc()`
-   - `set_ndpi_flow_tuple()`
-8. `endpoint_equal()`
-9. `ndpi_detection_process_packet()`
-10. 若尚未识别成功，则继续检查：
-   - `ndpi_get_flow_appprotocol()`
-   - `ndpi_get_flow_masterprotocol()`
-   - `ndpi_get_flow_category()`
+## 4. 时间模式 CSV 含义
 
-### 4.3 `packet_parser.c` 内部会走到的函数
+### 4.1 `time_flow_profile.csv`
 
-- `normalize_to_ethernet()`
-  - 支持 `DLT_EN10MB`
-  - 支持 `DLT_NULL / DLT_LOOP`
-  - 支持 `DLT_RAW`
-  - 支持 `DLT_LINUX_SLL`
-  - 支持 `DLT_LINUX_SLL2`
-- `parse_ethernet_frame()`
-  - 解析 Ethernet / VLAN / QinQ
-  - 解析 IPv4
-  - 解析 IPv6
-  - 提取 TCP / UDP 端口
-- `parse_ipv6_find_l4()`
-  - 处理 IPv6 扩展头定位
-- `flow_key_from_packet()`
-  - 生成双向 canonical flow key
-- `endpoint_equal()`
-  - 判断当前包方向
+每条流一行。
 
-### 4.4 `flow_table.c` 内部会走到的函数
+核心字段：
 
-- `flow_table_create()`
-- `flow_table_get_or_create()`
-- `flow_key_hash()`
-- `fnv1a64()`
-- `flow_table_rehash()`，当负载升高时触发
-- `flow_table_foreach()`，结束后做汇总时使用
-- `flow_table_destroy()`
+- `flow_id`
+  - 导出顺序号
+- `protocol_detected`
+  - 该流是否最终被 nDPI 识别
+- `ip_version`
+- `l4_proto`
+- `server_port`
+- `prefix_4`
+  - 首包 payload 前 4 字节十六进制
+- `detect_pkt_in_flow`
+  - 第几个包识别成功
+- `protocol`
+  - 最终协议名
+- `detecting_total_ms`
+  - 识别前整段累计处理时间
+- `detecting_detection_only_ms`
+  - 识别前 `ndpi_detection_process_packet()` 累计时间
+- `detecting_flow_table_ms`
+  - 识别前 `flow_table_get_or_create()` 累计时间
+- `detecting_other_ms`
+  - `detecting_total - detection_only - flow_table`
+- `detecting_detection_ratio`
+  - `detection_only / total`
+- `detecting_flow_table_ratio`
+  - `flow_table / total`
+- `detecting_other_ratio`
+  - `other / total`
+- `detecting_bytes`
+  - 到首次识别成功前累计看到的字节数
+- `packets_in_flow`
+- `bytes_in_flow`
 
-说明：
+此外还会展开前 20 包逐包样本：
 
-- `flow_table_delete()` 和 `compute_flow_hash()` 当前 `mark4` 主流程没有用到
+- `pkt01_total_ns`
+- `pkt01_detection_ns`
+- `pkt01_flow_table_ns`
+- `pkt01_other_ns`
+- ...
+- `pkt20_*`
 
-## 5. 运行结束后会输出什么
+### 4.2 `time_protocol_summary.csv`
 
-### 5.1 控制台总览
+按协议聚合，给出每种协议的平均值。
 
-固定会输出：
-
-- `Total packets`
-- `Total bytes`
-- `Parse-ok packets`
-- `Parse-fail packets`
-- `Normalize-fail packets`
-- `Total flows`
-- `Detected flows`
-- `Elapsed | pcap_read | process`
-
-### 5.2 Per-flow 明细
-
-只有未开启 `-q` 时才输出：
-
-- `flow_table_foreach(..., print_flow_cb, ...)`
-
-每条流会显示：
-
-- `client/server endpoint`
-- `proto`
-- `category`
-- `flow_detecting`
-- `flow_post`
-- `flow_total`
-- `detect_pkt(flow)`
-- `detect_pkt(global)`
-
-### 5.3 Category Summary
-
-通过：
-
-- `flow_table_foreach(..., aggregate_category_cb, ...)`
-
-按 `category` 聚合输出：
+核心字段：
 
 - `flows`
-- `avg_flow_detecting`
-- `avg_flow_post`
-- `avg_flow_total`
-- `avg_detect_pkt(flow)`
-- `avg_detect_pkt(global)`
+- `avg_detect_pkt_in_flow`
+- `avg_detecting_bytes`
+- `avg_detecting_total_ms`
+- `avg_detecting_detection_only_ms`
+- `avg_detecting_flow_table_ms`
+- `avg_detecting_other_ms`
+- `avg_detecting_detection_ratio`
+- `avg_detecting_flow_table_ratio`
+- `avg_detecting_other_ratio`
 
-### 5.4 Proto+Category Summary
+这张表适合看“协议平均识别成本长什么样”。
 
-通过：
+## 5. 硬件模式 CSV 含义
 
-- `flow_table_foreach(..., aggregate_proto_cb, ...)`
-- `qsort(..., proto_stat_cmp_desc)`
+### 5.1 `hardware_flow_profile.csv`
 
-按 `(master_proto, app_proto, category)` 聚合输出：
+每条流一行。
 
-- `flows`
-- `avg_flow_detecting`
-- `avg_flow_post`
-- `avg_flow_total`
-- `detecting_pkt_p50`
-- `detecting_pkt_p99`
-- `post_pkt_p50`
-- `post_pkt_p99`
-- `avg_detect_pkt(flow)`
-- `avg_detect_pkt(global)`
+核心字段：
 
-### 5.5 CSV 文件
+- `detecting_instructions`
+  - 识别前累计 retired instructions
+- `detecting_cycles`
+  - 识别前累计 CPU cycles
+- `detecting_ipc`
+  - `instructions / cycles`
+- `detecting_llc_misses`
+- `detecting_llc_refs`
+- `detecting_llc_miss_ratio`
+  - `llc_misses / llc_refs`
+- `detecting_branch_misses`
+- `detecting_branch_miss_per_kinst`
+  - 每千条识别前指令对应多少 branch miss
+- `detecting_bytes`
+- `detect_pkt_in_flow`
 
-输出文件：
+还会展开前 20 包逐包样本：
 
-- `output/<timestamp>/proto_category_summary.csv`
+- `pkt01_instr`
+- `pkt01_cycles`
+- `pkt01_llc_misses`
+- `pkt01_llc_refs`
+- `pkt01_branch_misses`
+- ...
+- `pkt20_*`
 
-写文件函数：
+### 5.2 `hardware_protocol_summary.csv`
 
-- `write_proto_summary_csv()`
+按协议聚合，给出每种协议识别前硬件画像平均值。
 
-CSV 列如下：
+核心字段：
 
-- `proto_name`
-- `master_proto`
-- `app_proto`
-- `category_name`
-- `category_id`
-- `flows`
-- `avg_flow_detecting_ms`
-- `avg_flow_post_ms`
-- `avg_flow_total_ms`
-- `detecting_pkt_p50_us`
-- `detecting_pkt_p99_us`
-- `post_pkt_p50_us`
-- `post_pkt_p99_us`
-- `avg_detect_pkt_flow`
-- `avg_detect_pkt_global`
+- `avg_detecting_instructions`
+- `avg_detecting_cycles`
+- `avg_detecting_ipc`
+- `avg_detecting_llc_misses`
+- `avg_detecting_llc_refs`
+- `avg_detecting_llc_miss_ratio`
+- `avg_detecting_branch_misses`
+- `avg_detecting_branch_miss_per_kinst`
 
-## 6. 一句总结
+这张表适合回答：
 
-当前 mark4 跑起来，本质上测的是：
+- 哪些协议“本身工作量大”
+- 哪些协议“主要卡在 cache”
+- 哪些协议“分支路径更复杂”
 
-- 单线程从 PCAP 读包到 nDPI 首次识别成功的端到端处理过程
-- 全局包/流统计
-- 每条已识别流在“识别前”和“识别后”分别累计花了多少处理时间，以及第几个包识别成功
-- 按 category、proto+category 的识别结果聚合
+## 6. 构建与运行
 
-如果你后面想把 README 再补成“带源码行号的版本”，我也可以继续帮你把每一项后面直接标到具体行号。
+配置：
+
+```bash
+cmake -S mark5 -B mark5/build -DNDPI_PREFIX=$HOME/ndpi-install
+```
+
+编译：
+
+```bash
+cmake --build mark5/build --target ndpiBenchmarkMark5Time
+cmake --build mark5/build --target ndpiBenchmarkMark5Hardware
+```
+
+运行时间模式：
+
+```bash
+./mark5/build/ndpiBenchmarkMark5Time -i input/Monday-WorkingHours.pcap -q
+```
+
+运行硬件模式：
+
+```bash
+./mark5/build/ndpiBenchmarkMark5Hardware -i input/Monday-WorkingHours.pcap -q
+```
+
+## 7. 实现思路总结
+
+这个版本最核心的设计是：
+
+- 共享同一套单线程 pcap 处理主循环
+- 共享同一套 flow 状态与协议判定逻辑
+- 只在“计量逻辑”和“CSV 输出”上通过编译期开关分叉
+
+这样做的好处是：
+
+- 时间版和硬件版的流定义完全一致
+- 输出字段可以自然对齐
+- 不需要维护两份容易漂移的主循环代码
+- 后续新增指标时，只改对应模式的计量块即可

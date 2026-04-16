@@ -51,48 +51,50 @@ set(NDPI_BENCHMARK_SOURCES
   src/flow_table.c
 )
 
-add_executable(ndpiBenchmarkMark5
+add_executable(ndpiBenchmarkMark5Time
   ${NDPI_BENCHMARK_SOURCES}
 )
 
-add_executable(ndpiBenchmarkMark5Prefix4
+add_executable(ndpiBenchmarkMark5Hardware
   ${NDPI_BENCHMARK_SOURCES}
 )
 
-target_include_directories(ndpiBenchmarkMark5 PRIVATE
+target_include_directories(ndpiBenchmarkMark5Time PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/src
   ${NDPI_INCLUDE_DIR}
 )
-target_compile_definitions(ndpiBenchmarkMark5 PRIVATE
+target_compile_definitions(ndpiBenchmarkMark5Time PRIVATE
   NDPI_SPEED_OUTPUT_DIR="${NDPI_SPEED_OUTPUT_DIR}"
+  MARK5_PROFILE_TIME=1
 )
 
-target_include_directories(ndpiBenchmarkMark5Prefix4 PRIVATE
+target_include_directories(ndpiBenchmarkMark5Hardware PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/src
   ${NDPI_INCLUDE_DIR}
 )
-target_compile_definitions(ndpiBenchmarkMark5Prefix4 PRIVATE
+target_compile_definitions(ndpiBenchmarkMark5Hardware PRIVATE
   NDPI_SPEED_OUTPUT_DIR="${NDPI_SPEED_OUTPUT_DIR}"
+  MARK5_PROFILE_HW=1
 )
 
-target_link_directories(ndpiBenchmarkMark5 PRIVATE
+target_link_directories(ndpiBenchmarkMark5Time PRIVATE
   ${NDPI_LIB_DIR}
 )
 
-target_link_directories(ndpiBenchmarkMark5Prefix4 PRIVATE
+target_link_directories(ndpiBenchmarkMark5Hardware PRIVATE
   ${NDPI_LIB_DIR}
 )
 
-target_link_libraries(ndpiBenchmarkMark5 PRIVATE
+target_link_libraries(ndpiBenchmarkMark5Time PRIVATE
   ndpi
   ${PCAP_LIB}
   Threads::Threads
   m
 )
 
-target_link_libraries(ndpiBenchmarkMark5Prefix4 PRIVATE
+target_link_libraries(ndpiBenchmarkMark5Hardware PRIVATE
   ndpi
   ${PCAP_LIB}
   Threads::Threads
