@@ -51,14 +51,26 @@ typedef struct {
   uint64_t sum_detecting_detection_only_ns;
   uint64_t sum_detecting_flow_table_ns;
   uint64_t sum_detecting_other_ns;
+  uint64_t sum_post_total_ns;
+  uint64_t sum_post_detection_only_ns;
+  uint64_t sum_post_flow_table_ns;
+  uint64_t sum_post_other_ns;
   uint64_t sum_detecting_packets;
+  uint64_t sum_post_packets;
   double sumsq_detecting_total_ns;
   double sumsq_detecting_detection_only_ns;
   double sumsq_detecting_flow_table_ns;
   double sumsq_detecting_other_ns;
+  double sumsq_post_total_ns;
+  double sumsq_post_detection_only_ns;
+  double sumsq_post_flow_table_ns;
+  double sumsq_post_other_ns;
   double sumsq_detecting_detection_ratio;
   double sumsq_detecting_flow_table_ratio;
   double sumsq_detecting_other_ratio;
+  double sumsq_post_detection_ratio;
+  double sumsq_post_flow_table_ratio;
+  double sumsq_post_other_ratio;
 #endif
 #if defined(MARK5_PROFILE_HW)
   uint64_t sum_detecting_instructions;
@@ -66,7 +78,13 @@ typedef struct {
   uint64_t sum_detecting_llc_misses;
   uint64_t sum_detecting_llc_refs;
   uint64_t sum_detecting_branch_misses;
+  uint64_t sum_post_instructions;
+  uint64_t sum_post_cycles;
+  uint64_t sum_post_llc_misses;
+  uint64_t sum_post_llc_refs;
+  uint64_t sum_post_branch_misses;
   uint64_t sum_detecting_packets;
+  uint64_t sum_post_packets;
   double sumsq_detecting_instructions;
   double sumsq_detecting_cycles;
   double sumsq_detecting_ipc;
@@ -75,6 +93,14 @@ typedef struct {
   double sumsq_detecting_llc_miss_ratio;
   double sumsq_detecting_branch_misses;
   double sumsq_detecting_branch_miss_per_kinst;
+  double sumsq_post_instructions;
+  double sumsq_post_cycles;
+  double sumsq_post_ipc;
+  double sumsq_post_llc_misses;
+  double sumsq_post_llc_refs;
+  double sumsq_post_llc_miss_ratio;
+  double sumsq_post_branch_misses;
+  double sumsq_post_branch_miss_per_kinst;
 #endif
 } proto_stat_t;
 
@@ -617,24 +643,44 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
     uint64_t detecting_other_ns = flow->detecting_time_ns_total -
                                   flow->detecting_detection_time_ns_total -
                                   flow->detecting_flow_table_time_ns_total;
+    uint64_t post_other_ns = flow->post_time_ns_total -
+                             flow->post_detection_time_ns_total -
+                             flow->post_flow_table_time_ns_total;
     double detection_ratio = safe_ratio_u64(flow->detecting_detection_time_ns_total, flow->detecting_time_ns_total);
     double flow_table_ratio = safe_ratio_u64(flow->detecting_flow_table_time_ns_total, flow->detecting_time_ns_total);
     double other_ratio = safe_ratio_u64(detecting_other_ns, flow->detecting_time_ns_total);
+    double post_detection_ratio = safe_ratio_u64(flow->post_detection_time_ns_total, flow->post_time_ns_total);
+    double post_flow_table_ratio = safe_ratio_u64(flow->post_flow_table_time_ns_total, flow->post_time_ns_total);
+    double post_other_ratio = safe_ratio_u64(post_other_ns, flow->post_time_ns_total);
 
-  st->sum_detecting_total_ns += flow->detecting_time_ns_total;
-  st->sum_detecting_detection_only_ns += flow->detecting_detection_time_ns_total;
-  st->sum_detecting_flow_table_ns += flow->detecting_flow_table_time_ns_total;
+    st->sum_detecting_total_ns += flow->detecting_time_ns_total;
+    st->sum_detecting_detection_only_ns += flow->detecting_detection_time_ns_total;
+    st->sum_detecting_flow_table_ns += flow->detecting_flow_table_time_ns_total;
     st->sum_detecting_other_ns += detecting_other_ns;
-  st->sum_detecting_packets += flow->detecting_packets;
+    st->sum_post_total_ns += flow->post_time_ns_total;
+    st->sum_post_detection_only_ns += flow->post_detection_time_ns_total;
+    st->sum_post_flow_table_ns += flow->post_flow_table_time_ns_total;
+    st->sum_post_other_ns += post_other_ns;
+    st->sum_detecting_packets += flow->detecting_packets;
+    st->sum_post_packets += flow->post_packets;
     st->sumsq_detecting_total_ns += (double)flow->detecting_time_ns_total * (double)flow->detecting_time_ns_total;
     st->sumsq_detecting_detection_only_ns += (double)flow->detecting_detection_time_ns_total *
                                              (double)flow->detecting_detection_time_ns_total;
     st->sumsq_detecting_flow_table_ns += (double)flow->detecting_flow_table_time_ns_total *
                                          (double)flow->detecting_flow_table_time_ns_total;
     st->sumsq_detecting_other_ns += (double)detecting_other_ns * (double)detecting_other_ns;
+    st->sumsq_post_total_ns += (double)flow->post_time_ns_total * (double)flow->post_time_ns_total;
+    st->sumsq_post_detection_only_ns += (double)flow->post_detection_time_ns_total *
+                                        (double)flow->post_detection_time_ns_total;
+    st->sumsq_post_flow_table_ns += (double)flow->post_flow_table_time_ns_total *
+                                    (double)flow->post_flow_table_time_ns_total;
+    st->sumsq_post_other_ns += (double)post_other_ns * (double)post_other_ns;
     st->sumsq_detecting_detection_ratio += detection_ratio * detection_ratio;
     st->sumsq_detecting_flow_table_ratio += flow_table_ratio * flow_table_ratio;
     st->sumsq_detecting_other_ratio += other_ratio * other_ratio;
+    st->sumsq_post_detection_ratio += post_detection_ratio * post_detection_ratio;
+    st->sumsq_post_flow_table_ratio += post_flow_table_ratio * post_flow_table_ratio;
+    st->sumsq_post_other_ratio += post_other_ratio * post_other_ratio;
   }
 #endif
 #if defined(MARK5_PROFILE_HW)
@@ -643,12 +689,22 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
     double detecting_llc_miss_ratio = safe_ratio_u64(flow->detecting_llc_misses_total, flow->detecting_llc_refs_total);
     double branch_miss_per_kinst =
         safe_ratio_u64(flow->detecting_branch_misses_total * 1000ULL, flow->detecting_instructions_total);
-  st->sum_detecting_instructions += flow->detecting_instructions_total;
-  st->sum_detecting_cycles += flow->detecting_cycles_total;
-  st->sum_detecting_llc_misses += flow->detecting_llc_misses_total;
-  st->sum_detecting_llc_refs += flow->detecting_llc_refs_total;
-  st->sum_detecting_branch_misses += flow->detecting_branch_misses_total;
-  st->sum_detecting_packets += flow->detecting_packets;
+    double post_ipc = safe_ratio_u64(flow->post_instructions_total, flow->post_cycles_total);
+    double post_llc_miss_ratio = safe_ratio_u64(flow->post_llc_misses_total, flow->post_llc_refs_total);
+    double post_branch_miss_per_kinst =
+        safe_ratio_u64(flow->post_branch_misses_total * 1000ULL, flow->post_instructions_total);
+    st->sum_detecting_instructions += flow->detecting_instructions_total;
+    st->sum_detecting_cycles += flow->detecting_cycles_total;
+    st->sum_detecting_llc_misses += flow->detecting_llc_misses_total;
+    st->sum_detecting_llc_refs += flow->detecting_llc_refs_total;
+    st->sum_detecting_branch_misses += flow->detecting_branch_misses_total;
+    st->sum_post_instructions += flow->post_instructions_total;
+    st->sum_post_cycles += flow->post_cycles_total;
+    st->sum_post_llc_misses += flow->post_llc_misses_total;
+    st->sum_post_llc_refs += flow->post_llc_refs_total;
+    st->sum_post_branch_misses += flow->post_branch_misses_total;
+    st->sum_detecting_packets += flow->detecting_packets;
+    st->sum_post_packets += flow->post_packets;
     st->sumsq_detecting_instructions += (double)flow->detecting_instructions_total *
                                         (double)flow->detecting_instructions_total;
     st->sumsq_detecting_cycles += (double)flow->detecting_cycles_total * (double)flow->detecting_cycles_total;
@@ -660,6 +716,17 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
     st->sumsq_detecting_branch_misses += (double)flow->detecting_branch_misses_total *
                                          (double)flow->detecting_branch_misses_total;
     st->sumsq_detecting_branch_miss_per_kinst += branch_miss_per_kinst * branch_miss_per_kinst;
+    st->sumsq_post_instructions += (double)flow->post_instructions_total *
+                                   (double)flow->post_instructions_total;
+    st->sumsq_post_cycles += (double)flow->post_cycles_total * (double)flow->post_cycles_total;
+    st->sumsq_post_ipc += post_ipc * post_ipc;
+    st->sumsq_post_llc_misses += (double)flow->post_llc_misses_total *
+                                 (double)flow->post_llc_misses_total;
+    st->sumsq_post_llc_refs += (double)flow->post_llc_refs_total * (double)flow->post_llc_refs_total;
+    st->sumsq_post_llc_miss_ratio += post_llc_miss_ratio * post_llc_miss_ratio;
+    st->sumsq_post_branch_misses += (double)flow->post_branch_misses_total *
+                                    (double)flow->post_branch_misses_total;
+    st->sumsq_post_branch_miss_per_kinst += post_branch_miss_per_kinst * post_branch_miss_per_kinst;
   }
 #endif
 }
@@ -727,8 +794,11 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
   uint64_t detecting_other_ns = flow->detecting_time_ns_total -
                                 flow->detecting_detection_time_ns_total -
                                 flow->detecting_flow_table_time_ns_total;
+  uint64_t post_other_ns = flow->post_time_ns_total -
+                           flow->post_detection_time_ns_total -
+                           flow->post_flow_table_time_ns_total;
   fprintf(ctx->fp,
-          "%lu,%u,%u,%u,%u,%s,%u,%u,%s,%u,%u,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%lu,%lu,%lu",
+          "%lu,%u,%u,%u,%u,%s,%u,%u,%s,%u,%u,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%lu,%lu,%lu",
           (unsigned long)ctx->index,
           (unsigned)flow->protocol_counted,
           (unsigned)flow->signature_ip_version,
@@ -748,6 +818,13 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
           safe_ratio_u64(flow->detecting_detection_time_ns_total, flow->detecting_time_ns_total),
           safe_ratio_u64(flow->detecting_flow_table_time_ns_total, flow->detecting_time_ns_total),
           safe_ratio_u64(detecting_other_ns, flow->detecting_time_ns_total),
+          (double)flow->post_time_ns_total / 1e6,
+          (double)flow->post_detection_time_ns_total / 1e6,
+          (double)flow->post_flow_table_time_ns_total / 1e6,
+          (double)post_other_ns / 1e6,
+          safe_ratio_u64(flow->post_detection_time_ns_total, flow->post_time_ns_total),
+          safe_ratio_u64(flow->post_flow_table_time_ns_total, flow->post_time_ns_total),
+          safe_ratio_u64(post_other_ns, flow->post_time_ns_total),
           (unsigned long)flow->detecting_bytes_total,
           (unsigned long)flow->seen_packets,
           (unsigned long)flow_bytes);
@@ -774,7 +851,7 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
           (unsigned)flow->detection_packet_in_flow,
           proto_name);
   fprintf(ctx->fp,
-          ",%lu,%lu,%.6f,%lu,%lu,%.6f,%lu,%.6f,%lu,%lu,%lu,%lu,%lu,%lu,%.6f",
+          ",%lu,%lu,%.6f,%lu,%lu,%.6f,%lu,%.6f,%lu,%lu,%.6f,%lu,%lu,%.6f,%lu,%.6f,%lu,%lu,%lu,%lu,%lu,%lu,%.6f",
           (unsigned long)flow->detecting_instructions_total,
           (unsigned long)flow->detecting_cycles_total,
           safe_ratio_u64(flow->detecting_instructions_total, flow->detecting_cycles_total),
@@ -782,7 +859,15 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
           (unsigned long)flow->detecting_llc_refs_total,
           safe_ratio_u64(flow->detecting_llc_misses_total, flow->detecting_llc_refs_total),
           (unsigned long)flow->detecting_branch_misses_total,
-          safe_ratio_u64(flow->detecting_branch_misses_total * 1000ULL, total_instr),
+          safe_ratio_u64(flow->detecting_branch_misses_total * 1000ULL, flow->detecting_instructions_total),
+          (unsigned long)flow->post_instructions_total,
+          (unsigned long)flow->post_cycles_total,
+          safe_ratio_u64(flow->post_instructions_total, flow->post_cycles_total),
+          (unsigned long)flow->post_llc_misses_total,
+          (unsigned long)flow->post_llc_refs_total,
+          safe_ratio_u64(flow->post_llc_misses_total, flow->post_llc_refs_total),
+          (unsigned long)flow->post_branch_misses_total,
+          safe_ratio_u64(flow->post_branch_misses_total * 1000ULL, flow->post_instructions_total),
           (unsigned long)flow->detecting_bytes_total,
           (unsigned long)flow->seen_packets,
           (unsigned long)flow_bytes,
@@ -801,10 +886,10 @@ static bool write_flow_csv(const char *csv_path,
   if (!fp) return false;
 
 #if defined(MARK5_PROFILE_TIME)
-  fprintf(fp, "flow_id,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_total_ms,detecting_detection_only_ms,detecting_flow_table_ms,detecting_other_ms,detecting_detection_ratio,detecting_flow_table_ratio,detecting_other_ratio,detecting_bytes,packets_in_flow,bytes_in_flow");
+  fprintf(fp, "flow_id,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_total_ms,detecting_detection_only_ms,detecting_flow_table_ms,detecting_other_ms,detecting_detection_ratio,detecting_flow_table_ratio,detecting_other_ratio,post_total_ms,post_detection_only_ms,post_flow_table_ms,post_other_ms,post_detection_ratio,post_flow_table_ratio,post_other_ratio,detecting_bytes,packets_in_flow,bytes_in_flow");
 #endif
 #if defined(MARK5_PROFILE_HW)
-  fprintf(fp, "flow_id,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_instructions,detecting_cycles,detecting_ipc,detecting_llc_misses,detecting_llc_refs,detecting_llc_miss_ratio,detecting_branch_misses,detecting_branch_miss_per_kinst,detecting_bytes,packets_in_flow,bytes_in_flow,total_llc_misses,total_llc_refs,total_branch_misses,total_ipc");
+  fprintf(fp, "flow_id,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_instructions,detecting_cycles,detecting_ipc,detecting_llc_misses,detecting_llc_refs,detecting_llc_miss_ratio,detecting_branch_misses,detecting_branch_miss_per_kinst,post_instructions,post_cycles,post_ipc,post_llc_misses,post_llc_refs,post_llc_miss_ratio,post_branch_misses,post_branch_miss_per_kinst,detecting_bytes,packets_in_flow,bytes_in_flow,total_llc_misses,total_llc_refs,total_branch_misses,total_ipc");
 #endif
   write_packet_columns_header(fp);
 
@@ -822,10 +907,10 @@ static bool write_protocol_csv(const char *csv_path,
   if (!fp) return false;
 
 #if defined(MARK5_PROFILE_TIME)
-  fprintf(fp, "protocol,protocol_detected,master_proto,app_proto,category_name,category_id,flows,avg_detect_pkt_in_flow,var_detect_pkt_in_flow,avg_detecting_bytes,var_detecting_bytes,avg_packets_in_flow,var_packets_in_flow,avg_bytes_in_flow,var_bytes_in_flow,avg_detecting_total_ms,var_detecting_total_ms,avg_detecting_detection_only_ms,var_detecting_detection_only_ms,avg_detecting_flow_table_ms,var_detecting_flow_table_ms,avg_detecting_other_ms,var_detecting_other_ms,avg_detecting_detection_ratio,var_detecting_detection_ratio,avg_detecting_flow_table_ratio,var_detecting_flow_table_ratio,avg_detecting_other_ratio,var_detecting_other_ratio\n");
+  fprintf(fp, "protocol,protocol_detected,master_proto,app_proto,category_name,category_id,flows,avg_detect_pkt_in_flow,var_detect_pkt_in_flow,avg_detecting_bytes,var_detecting_bytes,avg_packets_in_flow,var_packets_in_flow,avg_bytes_in_flow,var_bytes_in_flow,avg_detecting_total_ms,var_detecting_total_ms,avg_detecting_detection_only_ms,var_detecting_detection_only_ms,avg_detecting_flow_table_ms,var_detecting_flow_table_ms,avg_detecting_other_ms,var_detecting_other_ms,avg_detecting_detection_ratio,var_detecting_detection_ratio,avg_detecting_flow_table_ratio,var_detecting_flow_table_ratio,avg_detecting_other_ratio,var_detecting_other_ratio,avg_post_total_ms,var_post_total_ms,avg_post_detection_only_ms,var_post_detection_only_ms,avg_post_flow_table_ms,var_post_flow_table_ms,avg_post_other_ms,var_post_other_ms,avg_post_detection_ratio,var_post_detection_ratio,avg_post_flow_table_ratio,var_post_flow_table_ratio,avg_post_other_ratio,var_post_other_ratio\n");
 #endif
 #if defined(MARK5_PROFILE_HW)
-  fprintf(fp, "protocol,protocol_detected,master_proto,app_proto,category_name,category_id,flows,avg_detect_pkt_in_flow,var_detect_pkt_in_flow,avg_detecting_bytes,var_detecting_bytes,avg_packets_in_flow,var_packets_in_flow,avg_bytes_in_flow,var_bytes_in_flow,avg_detecting_instructions,var_detecting_instructions,avg_detecting_cycles,var_detecting_cycles,avg_detecting_ipc,var_detecting_ipc,avg_detecting_llc_misses,var_detecting_llc_misses,avg_detecting_llc_refs,var_detecting_llc_refs,avg_detecting_llc_miss_ratio,var_detecting_llc_miss_ratio,avg_detecting_branch_misses,var_detecting_branch_misses,avg_detecting_branch_miss_per_kinst,var_detecting_branch_miss_per_kinst\n");
+  fprintf(fp, "protocol,protocol_detected,master_proto,app_proto,category_name,category_id,flows,avg_detect_pkt_in_flow,var_detect_pkt_in_flow,avg_detecting_bytes,var_detecting_bytes,avg_packets_in_flow,var_packets_in_flow,avg_bytes_in_flow,var_bytes_in_flow,avg_detecting_instructions,var_detecting_instructions,avg_detecting_cycles,var_detecting_cycles,avg_detecting_ipc,var_detecting_ipc,avg_detecting_llc_misses,var_detecting_llc_misses,avg_detecting_llc_refs,var_detecting_llc_refs,avg_detecting_llc_miss_ratio,var_detecting_llc_miss_ratio,avg_detecting_branch_misses,var_detecting_branch_misses,avg_detecting_branch_miss_per_kinst,var_detecting_branch_miss_per_kinst,avg_post_instructions,var_post_instructions,avg_post_cycles,var_post_cycles,avg_post_ipc,var_post_ipc,avg_post_llc_misses,var_post_llc_misses,avg_post_llc_refs,var_post_llc_refs,avg_post_llc_miss_ratio,var_post_llc_miss_ratio,avg_post_branch_misses,var_post_branch_misses,avg_post_branch_miss_per_kinst,var_post_branch_miss_per_kinst\n");
 #endif
 
   for (size_t i = 0; i < count; i++) {
@@ -859,6 +944,18 @@ static bool write_protocol_csv(const char *csv_path,
         safe_ratio_u64(st->sum_detecting_flow_table_ns, st->sum_detecting_total_ns);
     double avg_detecting_other_ratio =
         safe_ratio_u64(st->sum_detecting_other_ns, st->sum_detecting_total_ns);
+    double avg_post_total_ms = (double)st->sum_post_total_ns / (double)st->flow_count / 1e6;
+    double avg_post_detection_only_ms =
+        (double)st->sum_post_detection_only_ns / (double)st->flow_count / 1e6;
+    double avg_post_flow_table_ms =
+        (double)st->sum_post_flow_table_ns / (double)st->flow_count / 1e6;
+    double avg_post_other_ms = (double)st->sum_post_other_ns / (double)st->flow_count / 1e6;
+    double avg_post_detection_ratio =
+        safe_ratio_u64(st->sum_post_detection_only_ns, st->sum_post_total_ns);
+    double avg_post_flow_table_ratio =
+        safe_ratio_u64(st->sum_post_flow_table_ns, st->sum_post_total_ns);
+    double avg_post_other_ratio =
+        safe_ratio_u64(st->sum_post_other_ns, st->sum_post_total_ns);
     double var_detect_pkt_in_flow =
         variance_from_sums((double)st->sum_detect_pkt_in_flow, st->sumsq_detect_pkt_in_flow, st->flow_count);
     double var_detecting_bytes =
@@ -886,14 +983,34 @@ static bool write_protocol_csv(const char *csv_path,
     double var_detecting_other_ratio =
         variance_from_sums(avg_detecting_other_ratio * (double)st->flow_count,
                            st->sumsq_detecting_other_ratio, st->flow_count);
-    fprintf(fp, "%s,%u,%u,%u,%s,%u,%lu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+    double var_post_total_ms =
+        variance_from_sums((double)st->sum_post_total_ns / 1e6, st->sumsq_post_total_ns / 1e12, st->flow_count);
+    double var_post_detection_only_ms =
+        variance_from_sums((double)st->sum_post_detection_only_ns / 1e6,
+                           st->sumsq_post_detection_only_ns / 1e12, st->flow_count);
+    double var_post_flow_table_ms =
+        variance_from_sums((double)st->sum_post_flow_table_ns / 1e6,
+                           st->sumsq_post_flow_table_ns / 1e12, st->flow_count);
+    double var_post_other_ms =
+        variance_from_sums((double)st->sum_post_other_ns / 1e6, st->sumsq_post_other_ns / 1e12, st->flow_count);
+    double var_post_detection_ratio =
+        variance_from_sums(avg_post_detection_ratio * (double)st->flow_count,
+                           st->sumsq_post_detection_ratio, st->flow_count);
+    double var_post_flow_table_ratio =
+        variance_from_sums(avg_post_flow_table_ratio * (double)st->flow_count,
+                           st->sumsq_post_flow_table_ratio, st->flow_count);
+    double var_post_other_ratio =
+        variance_from_sums(avg_post_other_ratio * (double)st->flow_count,
+                           st->sumsq_post_other_ratio, st->flow_count);
+    fprintf(fp, "%s,%u,%u,%u,%s,%u,%lu",
             proto_name,
             (unsigned)st->detected,
             (unsigned)st->master_proto,
             (unsigned)st->app_proto,
             cat_name,
             (unsigned)st->category,
-            (unsigned long)st->flow_count,
+            (unsigned long)st->flow_count);
+    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f",
             avg_detect_pkt_in_flow,
             var_detect_pkt_in_flow,
             avg_detecting_bytes,
@@ -901,7 +1018,8 @@ static bool write_protocol_csv(const char *csv_path,
             avg_packets_in_flow,
             var_packets_in_flow,
             avg_bytes_in_flow,
-            var_bytes_in_flow,
+            var_bytes_in_flow);
+    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f",
             avg_detecting_total_ms,
             var_detecting_total_ms,
             avg_detecting_detection_only_ms,
@@ -916,6 +1034,21 @@ static bool write_protocol_csv(const char *csv_path,
             var_detecting_flow_table_ratio,
             avg_detecting_other_ratio,
             var_detecting_other_ratio);
+    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+            avg_post_total_ms,
+            var_post_total_ms,
+            avg_post_detection_only_ms,
+            var_post_detection_only_ms,
+            avg_post_flow_table_ms,
+            var_post_flow_table_ms,
+            avg_post_other_ms,
+            var_post_other_ms,
+            avg_post_detection_ratio,
+            var_post_detection_ratio,
+            avg_post_flow_table_ratio,
+            var_post_flow_table_ratio,
+            avg_post_other_ratio,
+            var_post_other_ratio);
 #endif
 #if defined(MARK5_PROFILE_HW)
     double avg_detect_pkt_in_flow = (double)st->sum_detect_pkt_in_flow / (double)st->flow_count;
@@ -931,6 +1064,15 @@ static bool write_protocol_csv(const char *csv_path,
     double avg_detecting_branch_misses = (double)st->sum_detecting_branch_misses / (double)st->flow_count;
     double avg_detecting_branch_miss_per_kinst =
         safe_ratio_u64(st->sum_detecting_branch_misses * 1000ULL, st->sum_detecting_instructions);
+    double avg_post_instructions = (double)st->sum_post_instructions / (double)st->flow_count;
+    double avg_post_cycles = (double)st->sum_post_cycles / (double)st->flow_count;
+    double avg_post_ipc = safe_ratio_u64(st->sum_post_instructions, st->sum_post_cycles);
+    double avg_post_llc_misses = (double)st->sum_post_llc_misses / (double)st->flow_count;
+    double avg_post_llc_refs = (double)st->sum_post_llc_refs / (double)st->flow_count;
+    double avg_post_llc_miss_ratio = safe_ratio_u64(st->sum_post_llc_misses, st->sum_post_llc_refs);
+    double avg_post_branch_misses = (double)st->sum_post_branch_misses / (double)st->flow_count;
+    double avg_post_branch_miss_per_kinst =
+        safe_ratio_u64(st->sum_post_branch_misses * 1000ULL, st->sum_post_instructions);
     double var_detect_pkt_in_flow =
         variance_from_sums((double)st->sum_detect_pkt_in_flow, st->sumsq_detect_pkt_in_flow, st->flow_count);
     double var_detecting_bytes =
@@ -957,6 +1099,24 @@ static bool write_protocol_csv(const char *csv_path,
     double var_detecting_branch_miss_per_kinst =
         variance_from_sums(avg_detecting_branch_miss_per_kinst * (double)st->flow_count,
                            st->sumsq_detecting_branch_miss_per_kinst, st->flow_count);
+    double var_post_instructions =
+        variance_from_sums((double)st->sum_post_instructions, st->sumsq_post_instructions, st->flow_count);
+    double var_post_cycles =
+        variance_from_sums((double)st->sum_post_cycles, st->sumsq_post_cycles, st->flow_count);
+    double var_post_ipc =
+        variance_from_sums(avg_post_ipc * (double)st->flow_count, st->sumsq_post_ipc, st->flow_count);
+    double var_post_llc_misses =
+        variance_from_sums((double)st->sum_post_llc_misses, st->sumsq_post_llc_misses, st->flow_count);
+    double var_post_llc_refs =
+        variance_from_sums((double)st->sum_post_llc_refs, st->sumsq_post_llc_refs, st->flow_count);
+    double var_post_llc_miss_ratio =
+        variance_from_sums(avg_post_llc_miss_ratio * (double)st->flow_count,
+                           st->sumsq_post_llc_miss_ratio, st->flow_count);
+    double var_post_branch_misses =
+        variance_from_sums((double)st->sum_post_branch_misses, st->sumsq_post_branch_misses, st->flow_count);
+    double var_post_branch_miss_per_kinst =
+        variance_from_sums(avg_post_branch_miss_per_kinst * (double)st->flow_count,
+                           st->sumsq_post_branch_miss_per_kinst, st->flow_count);
     fprintf(fp, "%s,%u,%u,%u,%s,%u,%lu",
             proto_name,
             (unsigned)st->detected,
@@ -965,7 +1125,7 @@ static bool write_protocol_csv(const char *csv_path,
             cat_name,
             (unsigned)st->category,
             (unsigned long)st->flow_count);
-    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f",
             avg_detect_pkt_in_flow,
             var_detect_pkt_in_flow,
             avg_detecting_bytes,
@@ -973,7 +1133,8 @@ static bool write_protocol_csv(const char *csv_path,
             avg_packets_in_flow,
             var_packets_in_flow,
             avg_bytes_in_flow,
-            var_bytes_in_flow,
+            var_bytes_in_flow);
+    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f",
             avg_detecting_instructions,
             var_detecting_instructions,
             avg_detecting_cycles,
@@ -990,6 +1151,23 @@ static bool write_protocol_csv(const char *csv_path,
             var_detecting_branch_misses,
             avg_detecting_branch_miss_per_kinst,
             var_detecting_branch_miss_per_kinst);
+    fprintf(fp, ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+            avg_post_instructions,
+            var_post_instructions,
+            avg_post_cycles,
+            var_post_cycles,
+            avg_post_ipc,
+            var_post_ipc,
+            avg_post_llc_misses,
+            var_post_llc_misses,
+            avg_post_llc_refs,
+            var_post_llc_refs,
+            avg_post_llc_miss_ratio,
+            var_post_llc_miss_ratio,
+            avg_post_branch_misses,
+            var_post_branch_misses,
+            avg_post_branch_miss_per_kinst,
+            var_post_branch_miss_per_kinst);
 #endif
   }
 
