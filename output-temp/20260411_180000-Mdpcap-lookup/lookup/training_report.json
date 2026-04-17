@@ -1,0 +1,13 @@
+{
+  "coverage_all_flows": 0.8551564542909624,
+  "coverage_labeled": 0.8902467537889859,
+  "covered_labeled_flows": 213223,
+  "default_bucket": "Middle",
+  "labeled_flows": 239510,
+  "min_support": 20,
+  "port_rule_count": 20,
+  "purity_threshold": 0.95,
+  "special_rule_count": 0,
+  "total_flows": 249338,
+  "w_basis": "detecting_detection_only_ms"
+}

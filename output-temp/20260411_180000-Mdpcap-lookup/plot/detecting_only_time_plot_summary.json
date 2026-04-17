@@ -1,0 +1,19 @@
+{
+  "input": "/home/zync/WORKSPACE/ndpi_speed/output/20260411_180000/flow_profile.csv",
+  "run_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260411_180000",
+  "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260411_180000/plot",
+  "flow_count": 249338,
+  "overall_detecting_detection_only_mean_ms": 0.0039036078094795016,
+  "w_basis": "detecting_detection_only_ms",
+  "protocol_count": 93,
+  "bucket_centers_log_W": [
+    0.36144572100384353,
+    1.7433702566400517,
+    2.351690490033487
+  ],
+  "bucket_centers_W_mean_us": [
+    1.435403107630023,
+    5.716577325561475,
+    10.503310466891675
+  ]
+}

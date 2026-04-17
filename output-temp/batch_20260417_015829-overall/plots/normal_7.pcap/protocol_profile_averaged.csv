@@ -1,0 +1,5 @@
+protocol,profile_flows,profile_avg_detecting_total_ms,profile_avg_detecting_detection_only_ms,profile_avg_detecting_flow_table_ms,profile_avg_detecting_other_ms,profile_avg_detecting_detection_ratio,profile_avg_detecting_flow_table_ratio,profile_avg_detecting_other_ratio,profile_avg_detecting_ipc,profile_avg_detecting_llc_misses,profile_avg_detecting_llc_miss_ratio,profile_avg_detecting_branch_miss_per_kinst,protocol_label,family
+DNS,2040.0,0.0034269999999999995,0.002521,0.000433,0.000473,0.734849,0.1263415,0.13880949999999997,1.6684805,23.585048999999998,0.2595415,2.269914,DNS,DNS
+ICMPV6,59.0,0.002815,0.001424,0.000926,0.000465,0.5014755,0.33131,0.167215,0.846239,31.338983,0.2250985,7.1857505,ICMPV6,ICMPV6
+LLMNR,108.0,0.0030455000000000005,0.002337,0.000287,0.0004215,0.7633415,0.097363,0.139295,1.0468045,52.9166665,0.2015335,5.115076,LLMNR,LLMNR
+SamsungSDP,1691.0,0.0014055,0.0007,0.0003725,0.000333,0.484777,0.2735555,0.24166749999999998,1.3982455,6.304258,0.3242695,1.6451565,SamsungSDP,SamsungSDP

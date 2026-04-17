@@ -1,0 +1,13 @@
+{
+  "protocol_count_profile": 4,
+  "protocol_count_cross_core": 4,
+  "generated_files": {
+    "time_components": "protocol_time_components.png",
+    "hw_llc_ipc": "protocol_hw_llc_ipc.png",
+    "hw_branch": "protocol_hw_branch.png",
+    "scatter_time_llc": "scatter_time_vs_llc.png",
+    "scatter_time_ipc": "scatter_time_vs_ipc.png",
+    "cross_time_ratio": "cross_core_detecting_ratio.png",
+    "cross_ipc_llc_ratio": "cross_core_ipc_llc_ratio.png"
+  }
+}

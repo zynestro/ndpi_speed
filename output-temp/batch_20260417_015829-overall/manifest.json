@@ -1,0 +1,881 @@
+{
+  "batch_id": "batch_20260417_015829",
+  "created_at": "20260417_015829",
+  "batch_dir": "/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829",
+  "pcaps": [
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap",
+      "name": "201706251400.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T01:58:29+08:00",
+          "end_ts": "2026-04-17T02:00:10+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_015829",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:00:10+08:00",
+          "end_ts": "2026-04-17T02:03:03+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_020010",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:03:03+08:00",
+          "end_ts": "2026-04-17T02:05:56+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_020303",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:05:56+08:00",
+          "end_ts": "2026-04-17T02:11:13+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_020556",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap",
+      "name": "Monday-WorkingHours.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:11:13+08:00",
+          "end_ts": "2026-04-17T02:11:19+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021113",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:11:19+08:00",
+          "end_ts": "2026-04-17T02:11:35+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021119",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:11:35+08:00",
+          "end_ts": "2026-04-17T02:11:46+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021135",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:11:46+08:00",
+          "end_ts": "2026-04-17T02:12:14+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021146",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap",
+      "name": "cap_traffic.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:14+08:00",
+          "end_ts": "2026-04-17T02:12:15+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021214",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:15+08:00",
+          "end_ts": "2026-04-17T02:12:21+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021215",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:21+08:00",
+          "end_ts": "2026-04-17T02:12:22+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021221",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:22+08:00",
+          "end_ts": "2026-04-17T02:12:32+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021222",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap",
+      "name": "cap_traffic_fast.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:32+08:00",
+          "end_ts": "2026-04-17T02:12:32+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:32+08:00",
+          "end_ts": "2026-04-17T02:12:32+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:32+08:00",
+          "end_ts": "2026-04-17T02:12:32+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:32+08:00",
+          "end_ts": "2026-04-17T02:12:32+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap",
+      "name": "normal_1.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:32+08:00",
+          "end_ts": "2026-04-17T02:12:33+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:33+08:00",
+          "end_ts": "2026-04-17T02:12:34+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021233",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:34+08:00",
+          "end_ts": "2026-04-17T02:12:35+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021234",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:35+08:00",
+          "end_ts": "2026-04-17T02:12:37+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021235",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap",
+      "name": "normal_10.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:37+08:00",
+          "end_ts": "2026-04-17T02:12:38+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021237",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:38+08:00",
+          "end_ts": "2026-04-17T02:12:39+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021238",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:39+08:00",
+          "end_ts": "2026-04-17T02:12:40+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021239",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:40+08:00",
+          "end_ts": "2026-04-17T02:12:42+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021240",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap",
+      "name": "normal_11.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:42+08:00",
+          "end_ts": "2026-04-17T02:12:42+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021242",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:42+08:00",
+          "end_ts": "2026-04-17T02:12:44+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021242",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:44+08:00",
+          "end_ts": "2026-04-17T02:12:44+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021244",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:44+08:00",
+          "end_ts": "2026-04-17T02:12:46+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021244",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap",
+      "name": "normal_12.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:46+08:00",
+          "end_ts": "2026-04-17T02:12:47+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021246",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:47+08:00",
+          "end_ts": "2026-04-17T02:12:48+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021247",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:48+08:00",
+          "end_ts": "2026-04-17T02:12:49+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021248",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:49+08:00",
+          "end_ts": "2026-04-17T02:12:51+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021249",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap",
+      "name": "normal_13.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:51+08:00",
+          "end_ts": "2026-04-17T02:12:52+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021251",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:52+08:00",
+          "end_ts": "2026-04-17T02:12:53+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021252",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:53+08:00",
+          "end_ts": "2026-04-17T02:12:53+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021253",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:53+08:00",
+          "end_ts": "2026-04-17T02:12:56+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021253",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap",
+      "name": "normal_2.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:56+08:00",
+          "end_ts": "2026-04-17T02:12:56+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021256",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:56+08:00",
+          "end_ts": "2026-04-17T02:12:57+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021256",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:57+08:00",
+          "end_ts": "2026-04-17T02:12:58+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021257",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:12:58+08:00",
+          "end_ts": "2026-04-17T02:13:00+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021258",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap",
+      "name": "normal_3.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:00+08:00",
+          "end_ts": "2026-04-17T02:13:01+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021300",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:01+08:00",
+          "end_ts": "2026-04-17T02:13:02+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021301",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:02+08:00",
+          "end_ts": "2026-04-17T02:13:03+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021302",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:03+08:00",
+          "end_ts": "2026-04-17T02:13:05+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021303",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap",
+      "name": "normal_4.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:05+08:00",
+          "end_ts": "2026-04-17T02:13:05+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021305",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:05+08:00",
+          "end_ts": "2026-04-17T02:13:07+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021305",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:07+08:00",
+          "end_ts": "2026-04-17T02:13:07+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021307",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:07+08:00",
+          "end_ts": "2026-04-17T02:13:10+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021307",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap",
+      "name": "normal_5.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:10+08:00",
+          "end_ts": "2026-04-17T02:13:10+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021310",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:10+08:00",
+          "end_ts": "2026-04-17T02:13:11+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021310",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:11+08:00",
+          "end_ts": "2026-04-17T02:13:12+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021311",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:12+08:00",
+          "end_ts": "2026-04-17T02:13:14+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021312",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap",
+      "name": "normal_6.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:14+08:00",
+          "end_ts": "2026-04-17T02:13:15+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021314",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:15+08:00",
+          "end_ts": "2026-04-17T02:13:16+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021315",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:16+08:00",
+          "end_ts": "2026-04-17T02:13:17+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021316",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:17+08:00",
+          "end_ts": "2026-04-17T02:13:19+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021317",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap",
+      "name": "normal_7.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:19+08:00",
+          "end_ts": "2026-04-17T02:13:19+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021319",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:19+08:00",
+          "end_ts": "2026-04-17T02:13:21+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021319",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:21+08:00",
+          "end_ts": "2026-04-17T02:13:21+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021321",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:21+08:00",
+          "end_ts": "2026-04-17T02:13:23+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021321",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap",
+      "name": "normal_8.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:23+08:00",
+          "end_ts": "2026-04-17T02:13:24+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021323",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:24+08:00",
+          "end_ts": "2026-04-17T02:13:25+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021324",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:25+08:00",
+          "end_ts": "2026-04-17T02:13:26+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021325",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:26+08:00",
+          "end_ts": "2026-04-17T02:13:28+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021326",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap",
+      "name": "normal_9.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:28+08:00",
+          "end_ts": "2026-04-17T02:13:29+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021328",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:29+08:00",
+          "end_ts": "2026-04-17T02:13:30+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021329",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:30+08:00",
+          "end_ts": "2026-04-17T02:13:30+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021330",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:31+08:00",
+          "end_ts": "2026-04-17T02:13:33+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021331",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap",
+      "name": "seed_10G.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:33+08:00",
+          "end_ts": "2026-04-17T02:13:40+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021333",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:40+08:00",
+          "end_ts": "2026-04-17T02:13:55+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021340",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:13:55+08:00",
+          "end_ts": "2026-04-17T02:14:05+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021355",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:14:05+08:00",
+          "end_ts": "2026-04-17T02:14:33+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021405",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap -q"
+        }
+      }
+    },
+    {
+      "pcap": "/home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap",
+      "name": "seed_1500b.pcap",
+      "runs": {
+        "p_time": {
+          "mode": "time",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:14:33+08:00",
+          "end_ts": "2026-04-17T02:14:33+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021433",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap -q"
+        },
+        "p_hw": {
+          "mode": "hardware",
+          "core": 0,
+          "core_label": "P",
+          "status": "success",
+          "start_ts": "2026-04-17T02:14:33+08:00",
+          "end_ts": "2026-04-17T02:14:33+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021433",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 0 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap -q"
+        },
+        "e_time": {
+          "mode": "time",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:14:33+08:00",
+          "end_ts": "2026-04-17T02:14:34+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021433",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Time -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap -q"
+        },
+        "e_hw": {
+          "mode": "hardware",
+          "core": 19,
+          "core_label": "E",
+          "status": "success",
+          "start_ts": "2026-04-17T02:14:34+08:00",
+          "end_ts": "2026-04-17T02:14:34+08:00",
+          "output_dir": "/home/zync/WORKSPACE/ndpi_speed/output/20260417_021434",
+          "command": "/home/zync/WORKSPACE/ndpi_speed/mark5/build/ndpiBenchmarkMark5Hardware -c 19 -i /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap -q"
+        }
+      }
+    }
+  ]
+}

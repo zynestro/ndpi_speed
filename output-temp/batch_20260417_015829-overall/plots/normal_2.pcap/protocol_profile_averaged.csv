@@ -1,0 +1,5 @@
+protocol,profile_flows,profile_avg_detecting_total_ms,profile_avg_detecting_detection_only_ms,profile_avg_detecting_flow_table_ms,profile_avg_detecting_other_ms,profile_avg_detecting_detection_ratio,profile_avg_detecting_flow_table_ratio,profile_avg_detecting_other_ratio,profile_avg_detecting_ipc,profile_avg_detecting_llc_misses,profile_avg_detecting_llc_miss_ratio,profile_avg_detecting_branch_miss_per_kinst,protocol_label,family
+DNS,2183.0,0.0035269999999999998,0.002532,0.000539,0.0004555,0.719203,0.1525645,0.12823299999999999,1.6670060000000002,21.51672,0.2343395,2.22268,DNS,DNS
+ICMPV6,57.0,0.002631,0.0013765,0.0007155,0.0005395,0.5221530000000001,0.2775305,0.2003165,0.8696014999999999,28.149123000000003,0.252675,6.830222,ICMPV6,ICMPV6
+LLMNR,122.0,0.003181,0.0023485,0.00041,0.000423,0.7370909999999999,0.1306995,0.1322095,1.0473715000000001,44.5,0.186849,5.4494405,LLMNR,LLMNR
+SSDP,55.0,0.0053025,0.004543999999999999,0.000431,0.00032700000000000003,0.8542175,0.08368049999999999,0.062102000000000004,1.1006995000000002,104.7363635,0.1394505,5.3388100000000005,SSDP,SSDP

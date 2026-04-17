@@ -1,0 +1,7 @@
+{
+  "manifest": "/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/manifest.json",
+  "batch_dir": "/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829",
+  "plots_dir": "/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots",
+  "pcap_count": 19,
+  "combined_dir": "/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/_combined"
+}

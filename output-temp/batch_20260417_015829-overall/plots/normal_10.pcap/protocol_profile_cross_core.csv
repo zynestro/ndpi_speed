@@ -1,0 +1,3 @@
+protocol,flows_p,flows_e,avg_detecting_detection_only_ms_p,avg_detecting_detection_only_ms_e,avg_detecting_ipc_p,avg_detecting_ipc_e,avg_detecting_llc_miss_ratio_p,avg_detecting_llc_miss_ratio_e,ratio_detecting_time_e_over_p,ratio_ipc_p_over_e,ratio_llc_miss_ratio_e_over_p,protocol_label,family
+DNS,1855.0,1855.0,0.001964,0.003308,1.995827,1.331668,0.05919,0.424995,1.6843177189409368,1.4987421789815478,7.180182463253928,DNS,DNS
+LLMNR,113.0,113.0,0.001614,0.003258,1.331076,0.729633,0.048076,0.345028,2.0185873605947955,1.8243089333952822,7.176720193027706,LLMNR,LLMNR

@@ -1,0 +1,6 @@
+protocol,profile_flows,profile_avg_detecting_total_ms,profile_avg_detecting_detection_only_ms,profile_avg_detecting_flow_table_ms,profile_avg_detecting_other_ms,profile_avg_detecting_detection_ratio,profile_avg_detecting_flow_table_ratio,profile_avg_detecting_other_ratio,profile_avg_detecting_ipc,profile_avg_detecting_llc_misses,profile_avg_detecting_llc_miss_ratio,profile_avg_detecting_branch_miss_per_kinst,protocol_label,family
+DNS,384.0,0.00507,0.003468,0.000777,0.000825,0.684087,0.153243,0.162671,1.404356,4.4752605,0.2245215,1.247474,DNS,DNS
+HTTP,1251.0,0.009673,0.007673,0.000818,0.001182,0.793294,0.084552,0.122154,2.3494895,6.3920865,0.1881545,0.7852144999999999,HTTP,HTTP
+MySQL,407.0,0.023718,0.020176,0.00105,0.002492,0.850662,0.04427,0.105068,2.396816,7.309582,0.178479,0.9046645,MySQL,MySQL
+SSH,390.0,0.005884,0.003927,0.000785,0.001172,0.667473,0.133405,0.199122,1.9783805,6.1589745,0.22293300000000002,0.9647315000000001,SSH,SSH
+TLS,1619.0,0.023072,0.019521,0.001003,0.002548,0.846094,0.043479,0.110428,2.510115,7.492588,0.1815595,0.8056070000000001,TLS,TLS

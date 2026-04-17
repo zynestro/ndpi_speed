@@ -1,0 +1,2 @@
+protocol,flows_p,flows_e,avg_detecting_detection_only_ms_p,avg_detecting_detection_only_ms_e,avg_detecting_ipc_p,avg_detecting_ipc_e,avg_detecting_llc_miss_ratio_p,avg_detecting_llc_miss_ratio_e,ratio_detecting_time_e_over_p,ratio_ipc_p_over_e,ratio_llc_miss_ratio_e_over_p,protocol_label,family
+DNS,2194.0,2194.0,0.001881,0.001881,1.163537,1.163537,0.087199,0.087199,1.0,1.0,1.0,DNS,DNS

@@ -1,0 +1,3 @@
+protocol,profile_flows,profile_avg_detecting_total_ms,profile_avg_detecting_detection_only_ms,profile_avg_detecting_flow_table_ms,profile_avg_detecting_other_ms,profile_avg_detecting_detection_ratio,profile_avg_detecting_flow_table_ratio,profile_avg_detecting_other_ratio,profile_avg_detecting_ipc,profile_avg_detecting_llc_misses,profile_avg_detecting_llc_miss_ratio,profile_avg_detecting_branch_miss_per_kinst,protocol_label,family
+DNS,1664.0,0.003687,0.002686,0.0005415,0.000459,0.7271595,0.145044,0.127796,1.6554305,26.488582,0.232498,2.0888619999999998,DNS,DNS
+LLMNR,118.0,0.0033015,0.002442,0.0004955000000000001,0.000364,0.7344465,0.1550495,0.1105045,1.011378,58.415254499999996,0.20399250000000002,5.056046,LLMNR,LLMNR

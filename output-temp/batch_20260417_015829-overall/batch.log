@@ -1,0 +1,1395 @@
+[2026-04-17 01:58:29] Batch directory: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829
+[2026-04-17 01:58:29] Scanning input directory: /home/zync/WORKSPACE/ndpi_speed/input
+[2026-04-17 01:58:29] START pcap=201706251400.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_015829
+
+Total packets: 86477776
+Total bytes: 59208.84 MB
+Parse-ok packets: 86433548
+Parse-fail packets: 44228
+Normalize-fail packets: 0
+Total flows: 19379733
+Detected flows: 15900855 (82.05%)
+Elapsed: 40.934203 sec | pcap_read: 4.132682 sec | process: 34.948969 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_015829/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_015829/time_protocol_summary.csv
+[2026-04-17 02:00:10] DONE pcap=201706251400.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_015829
+[2026-04-17 02:00:10] START pcap=201706251400.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020010
+
+Total packets: 86477776
+Total bytes: 59208.84 MB
+Parse-ok packets: 86433548
+Parse-fail packets: 44228
+Normalize-fail packets: 0
+Total flows: 19379733
+Detected flows: 15900855 (82.05%)
+Elapsed: 107.316668 sec | pcap_read: 3.984899 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020010/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020010/hardware_protocol_summary.csv
+[2026-04-17 02:03:03] DONE pcap=201706251400.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_020010
+[2026-04-17 02:03:03] START pcap=201706251400.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020303
+
+Total packets: 86477776
+Total bytes: 59208.84 MB
+Parse-ok packets: 86433548
+Parse-fail packets: 44228
+Normalize-fail packets: 0
+Total flows: 19379733
+Detected flows: 15900855 (82.05%)
+Elapsed: 68.202839 sec | pcap_read: 6.807696 sec | process: 58.556715 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020303/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020303/time_protocol_summary.csv
+[2026-04-17 02:05:56] DONE pcap=201706251400.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_020303
+[2026-04-17 02:05:56] START pcap=201706251400.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/201706251400.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020556
+
+Total packets: 86477776
+Total bytes: 59208.84 MB
+Parse-ok packets: 86433548
+Parse-fail packets: 44228
+Normalize-fail packets: 0
+Total flows: 19379733
+Detected flows: 15900855 (82.05%)
+Elapsed: 203.926737 sec | pcap_read: 12.593778 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020556/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_020556/hardware_protocol_summary.csv
+[2026-04-17 02:11:13] DONE pcap=201706251400.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_020556
+[2026-04-17 02:11:13] START pcap=Monday-WorkingHours.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021113
+
+Total packets: 11709971
+Total bytes: 9949.78 MB
+Parse-ok packets: 11655546
+Parse-fail packets: 54425
+Normalize-fail packets: 0
+Total flows: 249338
+Detected flows: 239510 (96.06%)
+Elapsed: 5.563298 sec | pcap_read: 1.828675 sec | process: 3.481430 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021113/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021113/time_protocol_summary.csv
+[2026-04-17 02:11:19] DONE pcap=Monday-WorkingHours.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021113
+[2026-04-17 02:11:19] START pcap=Monday-WorkingHours.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021119
+
+Total packets: 11709971
+Total bytes: 9949.78 MB
+Parse-ok packets: 11655546
+Parse-fail packets: 54425
+Normalize-fail packets: 0
+Total flows: 249338
+Detected flows: 239510 (96.06%)
+Elapsed: 14.340030 sec | pcap_read: 1.980048 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021119/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021119/hardware_protocol_summary.csv
+[2026-04-17 02:11:35] DONE pcap=Monday-WorkingHours.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021119
+[2026-04-17 02:11:35] START pcap=Monday-WorkingHours.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021135
+
+Total packets: 11709971
+Total bytes: 9949.78 MB
+Parse-ok packets: 11655546
+Parse-fail packets: 54425
+Normalize-fail packets: 0
+Total flows: 249338
+Detected flows: 239510 (96.06%)
+Elapsed: 9.533269 sec | pcap_read: 3.357848 sec | process: 5.803831 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021135/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021135/time_protocol_summary.csv
+[2026-04-17 02:11:46] DONE pcap=Monday-WorkingHours.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021135
+[2026-04-17 02:11:46] START pcap=Monday-WorkingHours.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/Monday-WorkingHours.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021146
+
+Total packets: 11709971
+Total bytes: 9949.78 MB
+Parse-ok packets: 11655546
+Parse-fail packets: 54425
+Normalize-fail packets: 0
+Total flows: 249338
+Detected flows: 239510 (96.06%)
+Elapsed: 26.780412 sec | pcap_read: 4.199760 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021146/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021146/hardware_protocol_summary.csv
+[2026-04-17 02:12:14] DONE pcap=Monday-WorkingHours.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021146
+[2026-04-17 02:12:14] START pcap=cap_traffic.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021214
+
+Total packets: 5659073
+Total bytes: 782.37 MB
+Parse-ok packets: 5658877
+Parse-fail packets: 0
+Normalize-fail packets: 196
+Total flows: 10845
+Detected flows: 10116 (93.28%)
+Elapsed: 1.207077 sec | pcap_read: 0.381696 sec | process: 0.705656 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021214/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021214/time_protocol_summary.csv
+[2026-04-17 02:12:15] DONE pcap=cap_traffic.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021214
+[2026-04-17 02:12:15] START pcap=cap_traffic.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021215
+
+Total packets: 5659073
+Total bytes: 782.37 MB
+Parse-ok packets: 5658877
+Parse-fail packets: 0
+Normalize-fail packets: 196
+Total flows: 10845
+Detected flows: 10116 (93.28%)
+Elapsed: 5.243940 sec | pcap_read: 0.320696 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021215/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021215/hardware_protocol_summary.csv
+[2026-04-17 02:12:21] DONE pcap=cap_traffic.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021215
+[2026-04-17 02:12:21] START pcap=cap_traffic.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021221
+
+Total packets: 5659073
+Total bytes: 782.37 MB
+Parse-ok packets: 5658877
+Parse-fail packets: 0
+Normalize-fail packets: 196
+Total flows: 10845
+Detected flows: 10116 (93.28%)
+Elapsed: 1.764462 sec | pcap_read: 0.441417 sec | process: 1.145978 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021221/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021221/time_protocol_summary.csv
+[2026-04-17 02:12:22] DONE pcap=cap_traffic.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021221
+[2026-04-17 02:12:22] START pcap=cap_traffic.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021222
+
+Total packets: 5659073
+Total bytes: 782.37 MB
+Parse-ok packets: 5658877
+Parse-fail packets: 0
+Normalize-fail packets: 196
+Total flows: 10845
+Detected flows: 10116 (93.28%)
+Elapsed: 9.635366 sec | pcap_read: 0.734772 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021222/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021222/hardware_protocol_summary.csv
+[2026-04-17 02:12:32] DONE pcap=cap_traffic.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021222
+[2026-04-17 02:12:32] START pcap=cap_traffic_fast.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+
+Total packets: 25723
+Total bytes: 5.93 MB
+Parse-ok packets: 25723
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 765
+Detected flows: 453 (59.22%)
+Elapsed: 0.007032 sec | pcap_read: 0.001115 sec | process: 0.005380 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/time_protocol_summary.csv
+[2026-04-17 02:12:32] DONE pcap=cap_traffic_fast.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+[2026-04-17 02:12:32] START pcap=cap_traffic_fast.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+
+Total packets: 25723
+Total bytes: 5.93 MB
+Parse-ok packets: 25723
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 765
+Detected flows: 453 (59.22%)
+Elapsed: 0.025957 sec | pcap_read: 0.001288 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/hardware_protocol_summary.csv
+[2026-04-17 02:12:32] DONE pcap=cap_traffic_fast.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+[2026-04-17 02:12:32] START pcap=cap_traffic_fast.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+
+Total packets: 25723
+Total bytes: 5.93 MB
+Parse-ok packets: 25723
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 765
+Detected flows: 453 (59.22%)
+Elapsed: 0.011631 sec | pcap_read: 0.001942 sec | process: 0.008886 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/time_protocol_summary.csv
+[2026-04-17 02:12:32] DONE pcap=cap_traffic_fast.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+[2026-04-17 02:12:32] START pcap=cap_traffic_fast.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/cap_traffic_fast.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+
+Total packets: 25723
+Total bytes: 5.93 MB
+Parse-ok packets: 25723
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 765
+Detected flows: 453 (59.22%)
+Elapsed: 0.045575 sec | pcap_read: 0.002008 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/hardware_protocol_summary.csv
+[2026-04-17 02:12:32] DONE pcap=cap_traffic_fast.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+[2026-04-17 02:12:32] START pcap=normal_1.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+
+Total packets: 2000000
+Total bytes: 1059.00 MB
+Parse-ok packets: 523052
+Parse-fail packets: 1476948
+Normalize-fail packets: 0
+Total flows: 2666
+Detected flows: 2633 (98.76%)
+Elapsed: 0.573208 sec | pcap_read: 0.426606 sec | process: 0.104093 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021232/time_protocol_summary.csv
+[2026-04-17 02:12:33] DONE pcap=normal_1.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021232
+[2026-04-17 02:12:33] START pcap=normal_1.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021233
+
+Total packets: 2000000
+Total bytes: 1059.00 MB
+Parse-ok packets: 523052
+Parse-fail packets: 1476948
+Normalize-fail packets: 0
+Total flows: 2666
+Detected flows: 2633 (98.76%)
+Elapsed: 1.315693 sec | pcap_read: 0.232820 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021233/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021233/hardware_protocol_summary.csv
+[2026-04-17 02:12:34] DONE pcap=normal_1.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021233
+[2026-04-17 02:12:34] START pcap=normal_1.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021234
+
+Total packets: 2000000
+Total bytes: 1059.00 MB
+Parse-ok packets: 523052
+Parse-fail packets: 1476948
+Normalize-fail packets: 0
+Total flows: 2666
+Detected flows: 2633 (98.76%)
+Elapsed: 0.600153 sec | pcap_read: 0.367158 sec | process: 0.170405 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021234/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021234/time_protocol_summary.csv
+[2026-04-17 02:12:35] DONE pcap=normal_1.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021234
+[2026-04-17 02:12:35] START pcap=normal_1.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_1.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021235
+
+Total packets: 2000000
+Total bytes: 1059.00 MB
+Parse-ok packets: 523052
+Parse-fail packets: 1476948
+Normalize-fail packets: 0
+Total flows: 2666
+Detected flows: 2633 (98.76%)
+Elapsed: 2.416696 sec | pcap_read: 0.436429 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021235/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021235/hardware_protocol_summary.csv
+[2026-04-17 02:12:37] DONE pcap=normal_1.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021235
+[2026-04-17 02:12:37] START pcap=normal_10.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021237
+
+Total packets: 2000000
+Total bytes: 1006.91 MB
+Parse-ok packets: 268828
+Parse-fail packets: 1731172
+Normalize-fail packets: 0
+Total flows: 2170
+Detected flows: 2152 (99.17%)
+Elapsed: 0.486288 sec | pcap_read: 0.370579 sec | process: 0.073442 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021237/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021237/time_protocol_summary.csv
+[2026-04-17 02:12:38] DONE pcap=normal_10.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021237
+[2026-04-17 02:12:38] START pcap=normal_10.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021238
+
+Total packets: 2000000
+Total bytes: 1006.91 MB
+Parse-ok packets: 268828
+Parse-fail packets: 1731172
+Normalize-fail packets: 0
+Total flows: 2170
+Detected flows: 2152 (99.17%)
+Elapsed: 1.181636 sec | pcap_read: 0.225383 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021238/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021238/hardware_protocol_summary.csv
+[2026-04-17 02:12:39] DONE pcap=normal_10.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021238
+[2026-04-17 02:12:39] START pcap=normal_10.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021239
+
+Total packets: 2000000
+Total bytes: 1006.91 MB
+Parse-ok packets: 268828
+Parse-fail packets: 1731172
+Normalize-fail packets: 0
+Total flows: 2170
+Detected flows: 2152 (99.17%)
+Elapsed: 0.542164 sec | pcap_read: 0.359380 sec | process: 0.120343 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021239/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021239/time_protocol_summary.csv
+[2026-04-17 02:12:40] DONE pcap=normal_10.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021239
+[2026-04-17 02:12:40] START pcap=normal_10.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_10.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021240
+
+Total packets: 2000000
+Total bytes: 1006.91 MB
+Parse-ok packets: 268828
+Parse-fail packets: 1731172
+Normalize-fail packets: 0
+Total flows: 2170
+Detected flows: 2152 (99.17%)
+Elapsed: 2.134512 sec | pcap_read: 0.418015 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021240/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021240/hardware_protocol_summary.csv
+[2026-04-17 02:12:42] DONE pcap=normal_10.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021240
+[2026-04-17 02:12:42] START pcap=normal_11.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021242
+
+Total packets: 2000000
+Total bytes: 1003.08 MB
+Parse-ok packets: 275532
+Parse-fail packets: 1724468
+Normalize-fail packets: 0
+Total flows: 1945
+Detected flows: 1928 (99.13%)
+Elapsed: 0.494399 sec | pcap_read: 0.378942 sec | process: 0.073206 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021242/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021242/time_protocol_summary.csv
+[2026-04-17 02:12:42] DONE pcap=normal_11.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021242
+[2026-04-17 02:12:42] START pcap=normal_11.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021242
+
+Total packets: 2000000
+Total bytes: 1003.08 MB
+Parse-ok packets: 275532
+Parse-fail packets: 1724468
+Normalize-fail packets: 0
+Total flows: 1945
+Detected flows: 1928 (99.13%)
+Elapsed: 1.185458 sec | pcap_read: 0.226687 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021242/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021242/hardware_protocol_summary.csv
+[2026-04-17 02:12:44] DONE pcap=normal_11.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021242
+[2026-04-17 02:12:44] START pcap=normal_11.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021244
+
+Total packets: 2000000
+Total bytes: 1003.08 MB
+Parse-ok packets: 275532
+Parse-fail packets: 1724468
+Normalize-fail packets: 0
+Total flows: 1945
+Detected flows: 1928 (99.13%)
+Elapsed: 0.536441 sec | pcap_read: 0.353491 sec | process: 0.120493 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021244/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021244/time_protocol_summary.csv
+[2026-04-17 02:12:44] DONE pcap=normal_11.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021244
+[2026-04-17 02:12:44] START pcap=normal_11.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_11.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021244
+
+Total packets: 2000000
+Total bytes: 1003.08 MB
+Parse-ok packets: 275532
+Parse-fail packets: 1724468
+Normalize-fail packets: 0
+Total flows: 1945
+Detected flows: 1928 (99.13%)
+Elapsed: 2.148065 sec | pcap_read: 0.410305 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021244/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021244/hardware_protocol_summary.csv
+[2026-04-17 02:12:46] DONE pcap=normal_11.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021244
+[2026-04-17 02:12:46] START pcap=normal_12.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021246
+
+Total packets: 2000000
+Total bytes: 1003.56 MB
+Parse-ok packets: 276515
+Parse-fail packets: 1723485
+Normalize-fail packets: 0
+Total flows: 2995
+Detected flows: 2978 (99.43%)
+Elapsed: 0.528013 sec | pcap_read: 0.410001 sec | process: 0.075681 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021246/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021246/time_protocol_summary.csv
+[2026-04-17 02:12:47] DONE pcap=normal_12.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021246
+[2026-04-17 02:12:47] START pcap=normal_12.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021247
+
+Total packets: 2000000
+Total bytes: 1003.56 MB
+Parse-ok packets: 276515
+Parse-fail packets: 1723485
+Normalize-fail packets: 0
+Total flows: 2995
+Detected flows: 2978 (99.43%)
+Elapsed: 1.195905 sec | pcap_read: 0.231401 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021247/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021247/hardware_protocol_summary.csv
+[2026-04-17 02:12:48] DONE pcap=normal_12.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021247
+[2026-04-17 02:12:48] START pcap=normal_12.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021248
+
+Total packets: 2000000
+Total bytes: 1003.56 MB
+Parse-ok packets: 276515
+Parse-fail packets: 1723485
+Normalize-fail packets: 0
+Total flows: 2995
+Detected flows: 2978 (99.43%)
+Elapsed: 0.544552 sec | pcap_read: 0.357769 sec | process: 0.123831 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021248/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021248/time_protocol_summary.csv
+[2026-04-17 02:12:49] DONE pcap=normal_12.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021248
+[2026-04-17 02:12:49] START pcap=normal_12.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_12.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021249
+
+Total packets: 2000000
+Total bytes: 1003.56 MB
+Parse-ok packets: 276515
+Parse-fail packets: 1723485
+Normalize-fail packets: 0
+Total flows: 2995
+Detected flows: 2978 (99.43%)
+Elapsed: 2.175575 sec | pcap_read: 0.415794 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021249/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021249/hardware_protocol_summary.csv
+[2026-04-17 02:12:51] DONE pcap=normal_12.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021249
+[2026-04-17 02:12:51] START pcap=normal_13.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021251
+
+Total packets: 1918446
+Total bytes: 954.54 MB
+Parse-ok packets: 306195
+Parse-fail packets: 1612251
+Normalize-fail packets: 0
+Total flows: 4805
+Detected flows: 4786 (99.60%)
+Elapsed: 0.556232 sec | pcap_read: 0.436477 sec | process: 0.079178 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021251/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021251/time_protocol_summary.csv
+[2026-04-17 02:12:52] DONE pcap=normal_13.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021251
+[2026-04-17 02:12:52] START pcap=normal_13.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021252
+
+Total packets: 1918446
+Total bytes: 954.54 MB
+Parse-ok packets: 306195
+Parse-fail packets: 1612251
+Normalize-fail packets: 0
+Total flows: 4805
+Detected flows: 4786 (99.60%)
+Elapsed: 1.159551 sec | pcap_read: 0.217592 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021252/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021252/hardware_protocol_summary.csv
+[2026-04-17 02:12:53] DONE pcap=normal_13.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021252
+[2026-04-17 02:12:53] START pcap=normal_13.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021253
+
+Total packets: 1918446
+Total bytes: 954.54 MB
+Parse-ok packets: 306195
+Parse-fail packets: 1612251
+Normalize-fail packets: 0
+Total flows: 4805
+Detected flows: 4786 (99.60%)
+Elapsed: 0.528681 sec | pcap_read: 0.339144 sec | process: 0.129570 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021253/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021253/time_protocol_summary.csv
+[2026-04-17 02:12:53] DONE pcap=normal_13.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021253
+[2026-04-17 02:12:53] START pcap=normal_13.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_13.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021253
+
+Total packets: 1918446
+Total bytes: 954.54 MB
+Parse-ok packets: 306195
+Parse-fail packets: 1612251
+Normalize-fail packets: 0
+Total flows: 4805
+Detected flows: 4786 (99.60%)
+Elapsed: 2.108098 sec | pcap_read: 0.394584 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021253/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021253/hardware_protocol_summary.csv
+[2026-04-17 02:12:56] DONE pcap=normal_13.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021253
+[2026-04-17 02:12:56] START pcap=normal_2.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021256
+
+Total packets: 2000000
+Total bytes: 1034.43 MB
+Parse-ok packets: 361803
+Parse-fail packets: 1638197
+Normalize-fail packets: 0
+Total flows: 2639
+Detected flows: 2614 (99.05%)
+Elapsed: 0.541353 sec | pcap_read: 0.412691 sec | process: 0.086305 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021256/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021256/time_protocol_summary.csv
+[2026-04-17 02:12:56] DONE pcap=normal_2.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021256
+[2026-04-17 02:12:56] START pcap=normal_2.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021256
+
+Total packets: 2000000
+Total bytes: 1034.43 MB
+Parse-ok packets: 361803
+Parse-fail packets: 1638197
+Normalize-fail packets: 0
+Total flows: 2639
+Detected flows: 2614 (99.05%)
+Elapsed: 1.232689 sec | pcap_read: 0.231317 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021256/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021256/hardware_protocol_summary.csv
+[2026-04-17 02:12:57] DONE pcap=normal_2.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021256
+[2026-04-17 02:12:57] START pcap=normal_2.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021257
+
+Total packets: 2000000
+Total bytes: 1034.43 MB
+Parse-ok packets: 361803
+Parse-fail packets: 1638197
+Normalize-fail packets: 0
+Total flows: 2639
+Detected flows: 2614 (99.05%)
+Elapsed: 0.567251 sec | pcap_read: 0.363030 sec | process: 0.141770 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021257/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021257/time_protocol_summary.csv
+[2026-04-17 02:12:58] DONE pcap=normal_2.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021257
+[2026-04-17 02:12:58] START pcap=normal_2.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_2.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021258
+
+Total packets: 2000000
+Total bytes: 1034.43 MB
+Parse-ok packets: 361803
+Parse-fail packets: 1638197
+Normalize-fail packets: 0
+Total flows: 2639
+Detected flows: 2614 (99.05%)
+Elapsed: 2.220631 sec | pcap_read: 0.425138 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021258/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021258/hardware_protocol_summary.csv
+[2026-04-17 02:13:00] DONE pcap=normal_2.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021258
+[2026-04-17 02:13:00] START pcap=normal_3.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021300
+
+Total packets: 2000000
+Total bytes: 987.79 MB
+Parse-ok packets: 320663
+Parse-fail packets: 1679337
+Normalize-fail packets: 0
+Total flows: 2165
+Detected flows: 2158 (99.68%)
+Elapsed: 0.459040 sec | pcap_read: 0.336822 sec | process: 0.079916 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021300/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021300/time_protocol_summary.csv
+[2026-04-17 02:13:01] DONE pcap=normal_3.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021300
+[2026-04-17 02:13:01] START pcap=normal_3.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021301
+
+Total packets: 2000000
+Total bytes: 987.79 MB
+Parse-ok packets: 320663
+Parse-fail packets: 1679337
+Normalize-fail packets: 0
+Total flows: 2165
+Detected flows: 2158 (99.68%)
+Elapsed: 1.208544 sec | pcap_read: 0.225074 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021301/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021301/hardware_protocol_summary.csv
+[2026-04-17 02:13:02] DONE pcap=normal_3.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021301
+[2026-04-17 02:13:02] START pcap=normal_3.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021302
+
+Total packets: 2000000
+Total bytes: 987.79 MB
+Parse-ok packets: 320663
+Parse-fail packets: 1679337
+Normalize-fail packets: 0
+Total flows: 2165
+Detected flows: 2158 (99.68%)
+Elapsed: 0.542750 sec | pcap_read: 0.351613 sec | process: 0.128639 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021302/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021302/time_protocol_summary.csv
+[2026-04-17 02:13:03] DONE pcap=normal_3.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021302
+[2026-04-17 02:13:03] START pcap=normal_3.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_3.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021303
+
+Total packets: 2000000
+Total bytes: 987.79 MB
+Parse-ok packets: 320663
+Parse-fail packets: 1679337
+Normalize-fail packets: 0
+Total flows: 2165
+Detected flows: 2158 (99.68%)
+Elapsed: 2.188021 sec | pcap_read: 0.409215 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021303/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021303/hardware_protocol_summary.csv
+[2026-04-17 02:13:05] DONE pcap=normal_3.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021303
+[2026-04-17 02:13:05] START pcap=normal_4.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021305
+
+Total packets: 2000000
+Total bytes: 997.09 MB
+Parse-ok packets: 343548
+Parse-fail packets: 1656452
+Normalize-fail packets: 0
+Total flows: 4542
+Detected flows: 4529 (99.71%)
+Elapsed: 0.468580 sec | pcap_read: 0.341072 sec | process: 0.085206 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021305/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021305/time_protocol_summary.csv
+[2026-04-17 02:13:05] DONE pcap=normal_4.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021305
+[2026-04-17 02:13:05] START pcap=normal_4.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021305
+
+Total packets: 2000000
+Total bytes: 997.09 MB
+Parse-ok packets: 343548
+Parse-fail packets: 1656452
+Normalize-fail packets: 0
+Total flows: 4542
+Detected flows: 4529 (99.71%)
+Elapsed: 1.223019 sec | pcap_read: 0.226066 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021305/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021305/hardware_protocol_summary.csv
+[2026-04-17 02:13:07] DONE pcap=normal_4.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021305
+[2026-04-17 02:13:07] START pcap=normal_4.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021307
+
+Total packets: 2000000
+Total bytes: 997.09 MB
+Parse-ok packets: 343548
+Parse-fail packets: 1656452
+Normalize-fail packets: 0
+Total flows: 4542
+Detected flows: 4529 (99.71%)
+Elapsed: 0.560233 sec | pcap_read: 0.356909 sec | process: 0.140958 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021307/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021307/time_protocol_summary.csv
+[2026-04-17 02:13:07] DONE pcap=normal_4.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021307
+[2026-04-17 02:13:07] START pcap=normal_4.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_4.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021307
+
+Total packets: 2000000
+Total bytes: 997.09 MB
+Parse-ok packets: 343548
+Parse-fail packets: 1656452
+Normalize-fail packets: 0
+Total flows: 4542
+Detected flows: 4529 (99.71%)
+Elapsed: 2.203377 sec | pcap_read: 0.412798 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021307/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021307/hardware_protocol_summary.csv
+[2026-04-17 02:13:10] DONE pcap=normal_4.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021307
+[2026-04-17 02:13:10] START pcap=normal_5.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021310
+
+Total packets: 2000000
+Total bytes: 964.01 MB
+Parse-ok packets: 346247
+Parse-fail packets: 1653753
+Normalize-fail packets: 0
+Total flows: 5365
+Detected flows: 5361 (99.93%)
+Elapsed: 0.462221 sec | pcap_read: 0.335371 sec | process: 0.084514 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021310/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021310/time_protocol_summary.csv
+[2026-04-17 02:13:10] DONE pcap=normal_5.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021310
+[2026-04-17 02:13:10] START pcap=normal_5.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021310
+
+Total packets: 2000000
+Total bytes: 964.01 MB
+Parse-ok packets: 346247
+Parse-fail packets: 1653753
+Normalize-fail packets: 0
+Total flows: 5365
+Detected flows: 5361 (99.93%)
+Elapsed: 1.217743 sec | pcap_read: 0.220682 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021310/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021310/hardware_protocol_summary.csv
+[2026-04-17 02:13:11] DONE pcap=normal_5.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021310
+[2026-04-17 02:13:11] START pcap=normal_5.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021311
+
+Total packets: 2000000
+Total bytes: 964.01 MB
+Parse-ok packets: 346247
+Parse-fail packets: 1653753
+Normalize-fail packets: 0
+Total flows: 5365
+Detected flows: 5361 (99.93%)
+Elapsed: 0.554354 sec | pcap_read: 0.350132 sec | process: 0.141792 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021311/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021311/time_protocol_summary.csv
+[2026-04-17 02:13:12] DONE pcap=normal_5.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021311
+[2026-04-17 02:13:12] START pcap=normal_5.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_5.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021312
+
+Total packets: 2000000
+Total bytes: 964.01 MB
+Parse-ok packets: 346247
+Parse-fail packets: 1653753
+Normalize-fail packets: 0
+Total flows: 5365
+Detected flows: 5361 (99.93%)
+Elapsed: 2.209683 sec | pcap_read: 0.405331 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021312/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021312/hardware_protocol_summary.csv
+[2026-04-17 02:13:14] DONE pcap=normal_5.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021312
+[2026-04-17 02:13:14] START pcap=normal_6.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021314
+
+Total packets: 2000000
+Total bytes: 962.29 MB
+Parse-ok packets: 351468
+Parse-fail packets: 1648532
+Normalize-fail packets: 0
+Total flows: 6336
+Detected flows: 6328 (99.87%)
+Elapsed: 0.462641 sec | pcap_read: 0.332531 sec | process: 0.087768 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021314/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021314/time_protocol_summary.csv
+[2026-04-17 02:13:15] DONE pcap=normal_6.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021314
+[2026-04-17 02:13:15] START pcap=normal_6.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021315
+
+Total packets: 2000000
+Total bytes: 962.29 MB
+Parse-ok packets: 351468
+Parse-fail packets: 1648532
+Normalize-fail packets: 0
+Total flows: 6336
+Detected flows: 6328 (99.87%)
+Elapsed: 1.218989 sec | pcap_read: 0.219934 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021315/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021315/hardware_protocol_summary.csv
+[2026-04-17 02:13:16] DONE pcap=normal_6.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021315
+[2026-04-17 02:13:16] START pcap=normal_6.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021316
+
+Total packets: 2000000
+Total bytes: 962.29 MB
+Parse-ok packets: 351468
+Parse-fail packets: 1648532
+Normalize-fail packets: 0
+Total flows: 6336
+Detected flows: 6328 (99.87%)
+Elapsed: 0.557559 sec | pcap_read: 0.349671 sec | process: 0.145432 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021316/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021316/time_protocol_summary.csv
+[2026-04-17 02:13:17] DONE pcap=normal_6.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021316
+[2026-04-17 02:13:17] START pcap=normal_6.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_6.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021317
+
+Total packets: 2000000
+Total bytes: 962.29 MB
+Parse-ok packets: 351468
+Parse-fail packets: 1648532
+Normalize-fail packets: 0
+Total flows: 6336
+Detected flows: 6328 (99.87%)
+Elapsed: 2.199329 sec | pcap_read: 0.405217 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021317/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021317/hardware_protocol_summary.csv
+[2026-04-17 02:13:19] DONE pcap=normal_6.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021317
+[2026-04-17 02:13:19] START pcap=normal_7.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021319
+
+Total packets: 2000000
+Total bytes: 995.32 MB
+Parse-ok packets: 296374
+Parse-fail packets: 1703626
+Normalize-fail packets: 0
+Total flows: 4085
+Detected flows: 4077 (99.80%)
+Elapsed: 0.470328 sec | pcap_read: 0.349878 sec | process: 0.078198 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021319/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021319/time_protocol_summary.csv
+[2026-04-17 02:13:19] DONE pcap=normal_7.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021319
+[2026-04-17 02:13:19] START pcap=normal_7.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021319
+
+Total packets: 2000000
+Total bytes: 995.32 MB
+Parse-ok packets: 296374
+Parse-fail packets: 1703626
+Normalize-fail packets: 0
+Total flows: 4085
+Detected flows: 4077 (99.80%)
+Elapsed: 1.195263 sec | pcap_read: 0.222278 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021319/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021319/hardware_protocol_summary.csv
+[2026-04-17 02:13:21] DONE pcap=normal_7.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021319
+[2026-04-17 02:13:21] START pcap=normal_7.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021321
+
+Total packets: 2000000
+Total bytes: 995.32 MB
+Parse-ok packets: 296374
+Parse-fail packets: 1703626
+Normalize-fail packets: 0
+Total flows: 4085
+Detected flows: 4077 (99.80%)
+Elapsed: 0.543477 sec | pcap_read: 0.351572 sec | process: 0.129426 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021321/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021321/time_protocol_summary.csv
+[2026-04-17 02:13:21] DONE pcap=normal_7.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021321
+[2026-04-17 02:13:21] START pcap=normal_7.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_7.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021321
+
+Total packets: 2000000
+Total bytes: 995.32 MB
+Parse-ok packets: 296374
+Parse-fail packets: 1703626
+Normalize-fail packets: 0
+Total flows: 4085
+Detected flows: 4077 (99.80%)
+Elapsed: 2.157298 sec | pcap_read: 0.406523 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021321/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021321/hardware_protocol_summary.csv
+[2026-04-17 02:13:23] DONE pcap=normal_7.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021321
+[2026-04-17 02:13:23] START pcap=normal_8.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021323
+
+Total packets: 2000000
+Total bytes: 1140.48 MB
+Parse-ok packets: 312158
+Parse-fail packets: 1687842
+Normalize-fail packets: 0
+Total flows: 2695
+Detected flows: 2684 (99.59%)
+Elapsed: 0.529699 sec | pcap_read: 0.404824 sec | process: 0.082593 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021323/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021323/time_protocol_summary.csv
+[2026-04-17 02:13:24] DONE pcap=normal_8.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021323
+[2026-04-17 02:13:24] START pcap=normal_8.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021324
+
+Total packets: 2000000
+Total bytes: 1140.48 MB
+Parse-ok packets: 312158
+Parse-fail packets: 1687842
+Normalize-fail packets: 0
+Total flows: 2695
+Detected flows: 2684 (99.59%)
+Elapsed: 1.220560 sec | pcap_read: 0.240709 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021324/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021324/hardware_protocol_summary.csv
+[2026-04-17 02:13:25] DONE pcap=normal_8.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021324
+[2026-04-17 02:13:25] START pcap=normal_8.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021325
+
+Total packets: 2000000
+Total bytes: 1140.48 MB
+Parse-ok packets: 312158
+Parse-fail packets: 1687842
+Normalize-fail packets: 0
+Total flows: 2695
+Detected flows: 2684 (99.59%)
+Elapsed: 0.599595 sec | pcap_read: 0.393056 sec | process: 0.142173 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021325/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021325/time_protocol_summary.csv
+[2026-04-17 02:13:26] DONE pcap=normal_8.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021325
+[2026-04-17 02:13:26] START pcap=normal_8.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_8.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021326
+
+Total packets: 2000000
+Total bytes: 1140.48 MB
+Parse-ok packets: 312158
+Parse-fail packets: 1687842
+Normalize-fail packets: 0
+Total flows: 2695
+Detected flows: 2684 (99.59%)
+Elapsed: 2.200899 sec | pcap_read: 0.442938 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021326/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021326/hardware_protocol_summary.csv
+[2026-04-17 02:13:28] DONE pcap=normal_8.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021326
+[2026-04-17 02:13:28] START pcap=normal_9.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021328
+
+Total packets: 2000000
+Total bytes: 1033.65 MB
+Parse-ok packets: 274473
+Parse-fail packets: 1725527
+Normalize-fail packets: 0
+Total flows: 2747
+Detected flows: 2714 (98.80%)
+Elapsed: 0.494169 sec | pcap_read: 0.376045 sec | process: 0.075904 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021328/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021328/time_protocol_summary.csv
+[2026-04-17 02:13:29] DONE pcap=normal_9.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021328
+[2026-04-17 02:13:29] START pcap=normal_9.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021329
+
+Total packets: 2000000
+Total bytes: 1033.65 MB
+Parse-ok packets: 274473
+Parse-fail packets: 1725527
+Normalize-fail packets: 0
+Total flows: 2747
+Detected flows: 2714 (98.80%)
+Elapsed: 1.186300 sec | pcap_read: 0.227190 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021329/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021329/hardware_protocol_summary.csv
+[2026-04-17 02:13:30] DONE pcap=normal_9.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021329
+[2026-04-17 02:13:30] START pcap=normal_9.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021330
+
+Total packets: 2000000
+Total bytes: 1033.65 MB
+Parse-ok packets: 274473
+Parse-fail packets: 1725527
+Normalize-fail packets: 0
+Total flows: 2747
+Detected flows: 2714 (98.80%)
+Elapsed: 0.546584 sec | pcap_read: 0.359122 sec | process: 0.124983 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021330/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021330/time_protocol_summary.csv
+[2026-04-17 02:13:30] DONE pcap=normal_9.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021330
+[2026-04-17 02:13:31] START pcap=normal_9.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/normal_9.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021331
+
+Total packets: 2000000
+Total bytes: 1033.65 MB
+Parse-ok packets: 274473
+Parse-fail packets: 1725527
+Normalize-fail packets: 0
+Total flows: 2747
+Detected flows: 2714 (98.80%)
+Elapsed: 2.133998 sec | pcap_read: 0.413943 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021331/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021331/hardware_protocol_summary.csv
+[2026-04-17 02:13:33] DONE pcap=normal_9.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021331
+[2026-04-17 02:13:33] START pcap=seed_10G.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021333
+
+Total packets: 11929090
+Total bytes: 10000.03 MB
+Parse-ok packets: 11929090
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 270081
+Detected flows: 270081 (100.00%)
+Elapsed: 6.271362 sec | pcap_read: 2.977183 sec | process: 3.032371 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021333/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021333/time_protocol_summary.csv
+[2026-04-17 02:13:40] DONE pcap=seed_10G.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021333
+[2026-04-17 02:13:40] START pcap=seed_10G.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021340
+
+Total packets: 11929090
+Total bytes: 10000.03 MB
+Parse-ok packets: 11929090
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 270081
+Detected flows: 270081 (100.00%)
+Elapsed: 13.965030 sec | pcap_read: 1.793840 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021340/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021340/hardware_protocol_summary.csv
+[2026-04-17 02:13:55] DONE pcap=seed_10G.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021340
+[2026-04-17 02:13:55] START pcap=seed_10G.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021355
+
+Total packets: 11929090
+Total bytes: 10000.03 MB
+Parse-ok packets: 11929090
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 270081
+Detected flows: 270081 (100.00%)
+Elapsed: 8.754601 sec | pcap_read: 3.027488 sec | process: 5.351309 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021355/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021355/time_protocol_summary.csv
+[2026-04-17 02:14:05] DONE pcap=seed_10G.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021355
+[2026-04-17 02:14:05] START pcap=seed_10G.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_10G.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021405
+
+Total packets: 11929090
+Total bytes: 10000.03 MB
+Parse-ok packets: 11929090
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 270081
+Detected flows: 270081 (100.00%)
+Elapsed: 26.460991 sec | pcap_read: 3.942639 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021405/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021405/hardware_protocol_summary.csv
+[2026-04-17 02:14:33] DONE pcap=seed_10G.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021405
+[2026-04-17 02:14:33] START pcap=seed_1500b.pcap mode=time core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433
+
+Total packets: 180375
+Total bytes: 150.01 MB
+Parse-ok packets: 180375
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 4051
+Detected flows: 4051 (100.00%)
+Elapsed: 0.118442 sec | pcap_read: 0.061312 sec | process: 0.053183 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433/time_protocol_summary.csv
+[2026-04-17 02:14:33] DONE pcap=seed_1500b.pcap mode=time core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021433
+[2026-04-17 02:14:33] START pcap=seed_1500b.pcap mode=hardware core=0 (P)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433
+
+Total packets: 180375
+Total bytes: 150.01 MB
+Parse-ok packets: 180375
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 4051
+Detected flows: 4051 (100.00%)
+Elapsed: 0.219158 sec | pcap_read: 0.027055 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433/hardware_protocol_summary.csv
+[2026-04-17 02:14:33] DONE pcap=seed_1500b.pcap mode=hardware core=0 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021433
+[2026-04-17 02:14:33] START pcap=seed_1500b.pcap mode=time core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Time Cost Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433
+
+Total packets: 180375
+Total bytes: 150.01 MB
+Parse-ok packets: 180375
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 4051
+Detected flows: 4051 (100.00%)
+Elapsed: 0.147100 sec | pcap_read: 0.046094 sec | process: 0.095337 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433/time_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021433/time_protocol_summary.csv
+[2026-04-17 02:14:34] DONE pcap=seed_1500b.pcap mode=time core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021433
+[2026-04-17 02:14:34] START pcap=seed_1500b.pcap mode=hardware core=19 (E)
+========================================
+ndpiBenchmarkMark5 (Hardware Counter Profiler)
+========================================
+PCAP: /home/zync/WORKSPACE/ndpi_speed/input/seed_1500b.pcap
+Output: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021434
+
+Total packets: 180375
+Total bytes: 150.01 MB
+Parse-ok packets: 180375
+Parse-fail packets: 0
+Normalize-fail packets: 0
+Total flows: 4051
+Detected flows: 4051 (100.00%)
+Elapsed: 0.420546 sec | pcap_read: 0.060093 sec | process: 0.000000 sec
+Flow CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021434/hardware_flow_profile.csv
+Protocol CSV saved: /home/zync/WORKSPACE/ndpi_speed/output/20260417_021434/hardware_protocol_summary.csv
+[2026-04-17 02:14:34] DONE pcap=seed_1500b.pcap mode=hardware core=19 output=/home/zync/WORKSPACE/ndpi_speed/output/20260417_021434
+[2026-04-17 02:14:34] Manifest saved: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/manifest.json
+[2026-04-17 02:14:34] START auto-plot manifest=/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/manifest.json
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/201706251400.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/Monday-WorkingHours.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/cap_traffic.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/cap_traffic_fast.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_1.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_10.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_11.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_12.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_13.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_2.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_3.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_4.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_5.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_6.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_7.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_8.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/normal_9.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/seed_10G.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/seed_1500b.pcap
+Saved 7 figures and 2 merged csv tables to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots/_combined
+Saved per-pcap and combined plots to: /home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots
+[2026-04-17 02:18:35] DONE auto-plot output=/home/zync/WORKSPACE/ndpi_speed/output/batch_20260417_015829/plots
+[2026-04-17 02:18:35] Batch finished

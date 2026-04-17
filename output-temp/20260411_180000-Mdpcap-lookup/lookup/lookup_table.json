@@ -1,0 +1,26 @@
+{
+  "default_bucket": "Middle",
+  "port_table": {
+    "0": "Easy",
+    "123": "Easy",
+    "135": "Middle",
+    "137": "Easy",
+    "139": "Easy",
+    "1900": "Middle",
+    "21": "Hard",
+    "22": "Easy",
+    "3268": "Easy",
+    "3478": "Easy",
+    "389": "Easy",
+    "443": "Middle",
+    "445": "Middle",
+    "465": "Middle",
+    "49666": "Middle",
+    "49671": "Middle",
+    "53": "Easy",
+    "5355": "Easy",
+    "8080": "Middle",
+    "88": "Easy"
+  },
+  "special_rules": {}
+}
