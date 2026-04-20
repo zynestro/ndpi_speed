@@ -1,0 +1,10 @@
+{
+  "input_rows": 68,
+  "column": "profile_avg_detecting_flow_table_ms",
+  "min": 0.0003390742740862,
+  "q1": 0.000505080695025375,
+  "median": 0.0005383448031267,
+  "q3": 0.000856456795066825,
+  "max": 0.004702142361111,
+  "output_png": "/home/zync/WORKSPACE/ndpi_speed/output-temp/batch_20260417_015829-overall/plots/_combined/protocol_numberline_flow_table_ms.png"
+}

@@ -1,0 +1,10 @@
+{
+  "input_rows": 68,
+  "column": "profile_avg_detecting_detection_only_ms",
+  "min": 0.0005214572506025,
+  "q1": 0.00369282012247605,
+  "median": 0.0089464144570256,
+  "q3": 0.0099488384905085,
+  "max": 0.0208527528089887,
+  "output_png": "/home/zync/WORKSPACE/ndpi_speed/output-temp/batch_20260417_015829-overall/plots/_combined/protocol_numberline_avg_detecting_detection_only_ms.png"
+}

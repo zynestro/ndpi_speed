@@ -4,6 +4,26 @@
 #include <sys/types.h>
 #include <time.h>
 
+/*
+ * mark5/src/main.c
+ *
+ * 这是 mark5 的核心主控文件，负责把“离线 pcap 回放 -> 报文解析 -> flow 查表
+ * -> nDPI 协议识别 -> 分阶段统计 -> CSV 导出”这一整条链路串起来。
+ *
+ * 设计思路可以概括为：
+ * 1. 逐包读取 pcap。
+ * 2. 标准化链路层并解析出可供 nDPI 使用的 L3/L4 视图。
+ * 3. 用 flow_table 把同一条流的状态串起来。
+ * 4. 调用 nDPI 推进协议识别。
+ * 5. 以“识别成功前 / 识别成功后”为界，把处理代价拆成 detecting / post 两段。
+ * 6. 在 time 模式下测时间，在 hardware 模式下测 PMU 计数器。
+ * 7. 最后同时导出：
+ *    - 逐 flow 的画像表
+ *    - 按协议聚合后的 summary 表
+ *
+ * 因此这个文件既是 mark5 的执行入口，也是所有 profiling 口径的定义位置。
+ */
+
 #define PREFIX_BYTES 4
 
 #if defined(MARK5_PROFILE_TIME)
@@ -21,6 +41,7 @@
 #endif
 
 typedef struct {
+  /* 整次运行的全局统计，用于终端打印 benchmark 概览。 */
   uint64_t total_packets;
   uint64_t total_bytes;
   uint64_t parse_ok_packets;
@@ -33,6 +54,12 @@ typedef struct {
 } benchmark_stats_t;
 
 typedef struct {
+  /*
+   * 协议级聚合单元。
+   *
+   * 一个 proto_stat_t 对应最终 summary CSV 里的一行。它把多个 flow 的统计量
+   * 聚合起来，并同时保留 sum 与 sumsq，便于后续计算均值与方差。
+   */
   bool detected;
   uint16_t master_proto;
   uint16_t app_proto;
@@ -105,18 +132,21 @@ typedef struct {
 } proto_stat_t;
 
 typedef struct {
+  /* 动态数组：收集所有协议聚合行，最终再排序写出。 */
   proto_stat_t *items;
   size_t count;
   size_t cap;
 } proto_aggregate_ctx_t;
 
 typedef struct {
+  /* 导出逐 flow CSV 时携带的上下文。 */
   struct ndpi_detection_module_struct *ndpi;
   FILE *fp;
   uint64_t index;
 } flow_csv_ctx_t;
 
 typedef struct {
+  /* 命令行解析后的运行配置。 */
   const char *pcap_file;
   const char *proto_file;
   const char *output_root;
@@ -126,6 +156,7 @@ typedef struct {
 
 #if defined(MARK5_PROFILE_HW)
 typedef struct {
+  /* 一次 PMU 读取得到的快照，按字段保存原始计数器值。 */
   uint64_t instructions;
   uint64_t cycles;
   uint64_t llc_misses;
@@ -134,12 +165,23 @@ typedef struct {
 } hw_snapshot_t;
 
 typedef struct {
+  /*
+   * 一个 perf event group。
+   *
+   * 之所以做成 group，是为了尽量在同一读操作里得到一致时刻的多路计数器值，
+   * 从而让“包前/包后差分”更稳定。
+   */
   int leader_fd;
   int fds[3];
   size_t count;
 } perf_group_t;
 
 typedef struct {
+  /*
+   * mark5 硬件模式一共维护两组 PMU：
+   * - work: 指令数、周期数
+   * - bottleneck: LLC miss/ref、branch miss
+   */
   perf_group_t work;
   perf_group_t bottleneck;
   uint32_t pmu_type;
@@ -241,6 +283,10 @@ static void set_ndpi_flow_tuple(struct ndpi_flow_struct *flow,
                                 const parsed_packet_t *p,
                                 const endpoint_t *client,
                                 const endpoint_t *server) {
+  /*
+   * 把我们自己解析出的五元组方向信息写入 nDPI 的 flow 结构。
+   * 这样后续 ndpi_detection_process_packet() 才能在它自己的状态机里持续推进。
+   */
   flow->l4_proto = p->l4_proto;
   flow->is_ipv6 = (p->ip_version == 6);
   flow->c_port = client->port;
@@ -291,6 +337,15 @@ static bool mkdir_p(const char *dir) {
 static void init_signature_from_first_packet(bench_flow_t *flow,
                                              const parsed_packet_t *pp,
                                              const endpoint_t *dst_ep) {
+  /*
+   * 为每条流抓取一个“首包签名”：
+   * - IP 版本
+   * - L4 协议
+   * - 服务端端口
+   * - payload 前 4 字节
+   *
+   * 这部分不是 nDPI 识别必需的，而是为了后续做 lookup / 首包特征分析。
+   */
   if (!flow || !pp || !dst_ep || flow->signature_initialized) return;
 
   flow->signature_initialized = true;
@@ -437,6 +492,13 @@ static bool perf_group_open(perf_group_t *group,
                             const uint64_t *configs,
                             size_t count,
                             const char *label) {
+  /*
+   * 打开一组 perf 计数器。
+   *
+   * 这里把 leader 和从属事件绑成一个 group，后面读取时会一次性返回整组值。
+   * 另外通过 exclude_kernel / exclude_hv，把统计范围尽量限制在用户态主路径，
+   * 避免内核噪声放大解释难度。
+   */
   memset(group, 0, sizeof(*group));
   group->leader_fd = -1;
   for (size_t i = 0; i < 3; i++) group->fds[i] = -1;
@@ -508,6 +570,15 @@ static bool perf_group_read_values(const perf_group_t *group, uint64_t *values_o
 }
 
 static bool perf_monitor_open(perf_monitor_t *monitor, uint32_t cpu_core) {
+  /*
+   * 硬件模式把事件拆成两组：
+   * - work: 反映总体执行量（instructions / cycles）
+   * - bottleneck: 反映瓶颈特征（cache / branch）
+   *
+   * 这样做有两个好处：
+   * 1. 逻辑上更清楚，便于展示“做了多少事”和“为什么慢”。
+   * 2. 一些平台上 group 容量有限，拆两组更稳。
+   */
   static const uint64_t work_configs[2] = {
       PERF_COUNT_HW_INSTRUCTIONS,
       PERF_COUNT_HW_CPU_CYCLES,
@@ -606,6 +677,13 @@ static bool proto_key_equal(const proto_stat_t *st, const bench_flow_t *flow) {
 }
 
 static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
+  /*
+   * 把逐 flow 统计折叠成逐 protocol 统计。
+   *
+   * 这一步是 mark5 从“原始画像采样器”变成“协议画像生成器”的关键：
+   * - flow CSV 适合做个案分析
+   * - protocol summary 更适合做横向比较和后续出图
+   */
   proto_aggregate_ctx_t *ctx = (proto_aggregate_ctx_t *)user;
   if (!flow || !ctx) return;
 
@@ -640,6 +718,7 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
   }
 #if defined(MARK5_PROFILE_TIME)
   {
+    /* “other” 不直接单独打点，而是由总时间减去 detection / flow-table 得到。 */
     uint64_t detecting_other_ns = flow->detecting_time_ns_total -
                                   flow->detecting_detection_time_ns_total -
                                   flow->detecting_flow_table_time_ns_total;
@@ -685,6 +764,12 @@ static void aggregate_proto_cb(bench_flow_t *flow, void *user) {
 #endif
 #if defined(MARK5_PROFILE_HW)
   {
+    /*
+     * 硬件模式下的派生指标：
+     * - IPC: 指令数 / 周期数
+     * - LLC miss ratio: LLC miss / LLC reference
+     * - branch miss per kinst: 每千条指令的分支失预测数
+     */
     double detecting_ipc = safe_ratio_u64(flow->detecting_instructions_total, flow->detecting_cycles_total);
     double detecting_llc_miss_ratio = safe_ratio_u64(flow->detecting_llc_misses_total, flow->detecting_llc_refs_total);
     double branch_miss_per_kinst =
@@ -778,6 +863,15 @@ static void write_packet_columns_row(FILE *fp, const bench_flow_t *flow) {
 }
 
 static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
+  /*
+   * 输出逐 flow 结果。
+   *
+   * 这里保留的信息最细，便于回答：
+   * - 这条流最终识别成了什么协议？
+   * - 在第几个包识别成功？
+   * - 识别前到底花了多少时间 / 指令 / cache miss？
+   * - 识别后还有多少 post 阶段开销？
+   */
   flow_csv_ctx_t *ctx = (flow_csv_ctx_t *)user;
   if (!flow || !ctx || !ctx->fp) return;
 
@@ -903,6 +997,14 @@ static bool write_protocol_csv(const char *csv_path,
                                struct ndpi_detection_module_struct *ndpi,
                                proto_stat_t *stats,
                                size_t count) {
+  /*
+   * 输出逐协议 summary。
+   *
+   * 这里的每一行都代表一种协议画像，适合后续：
+   * - 画协议成本对比图
+   * - 训练 lookup / 调度模型
+   * - 做 P-core / E-core 的对比分析
+   */
   FILE *fp = fopen(csv_path, "w");
   if (!fp) return false;
 
@@ -1176,6 +1278,14 @@ static bool write_protocol_csv(const char *csv_path,
 }
 
 int main(int argc, char **argv) {
+  /*
+   * 主流程总览：
+   * 1. 解析参数并准备输出目录
+   * 2. 初始化 nDPI / flow table / pcap / PMU
+   * 3. 进入逐包主循环
+   * 4. 每包做解析、查表、识别和代价累计
+   * 5. 结束后导出 flow CSV 和 protocol CSV
+   */
   benchmark_config_t cfg = parse_args(argc, argv);
   char run_ts[32] = {0};
   char run_dir[PATH_MAX] = {0};
@@ -1258,6 +1368,7 @@ int main(int argc, char **argv) {
   const u_char *pkt = NULL;
 
   while (1) {
+    /* 阶段 A：读取一包原始 pcap 数据，并单独累计 pcap read 时间。 */
     uint64_t t_read0 = get_time_ns();
     int rc = pcap_next_ex(pc, &hdr, &pkt);
     uint64_t t_read1 = get_time_ns();
@@ -1281,9 +1392,11 @@ int main(int argc, char **argv) {
     stats.total_bytes += hdr->len;
 
 #if defined(MARK5_PROFILE_TIME)
+    /* 阶段 B：时间模式下，以整包处理开始时刻作为 total 的起点。 */
     uint64_t t_proc0 = get_time_ns();
 #endif
 #if defined(MARK5_PROFILE_HW)
+    /* 阶段 B：硬件模式下，先读一次“包前”PMU 快照。 */
     hw_snapshot_t hw_begin, hw_end, hw_delta;
     if (!perf_monitor_read(&perf_monitor, &hw_begin)) {
       fprintf(stderr, "Error: perf read(begin) failed\n");
@@ -1302,6 +1415,7 @@ int main(int argc, char **argv) {
     uint8_t scratch[MAX_PACKET_SIZE];
     if (!normalize_to_ethernet(linktype, pkt, (uint16_t)hdr->caplen, (uint16_t)hdr->len,
                                &norm_data, &norm_caplen, &norm_wirelen, scratch, sizeof(scratch))) {
+      /* 链路层标准化失败：当前包放弃，但主流程继续。 */
       stats.normalize_fail_packets++;
 #if defined(MARK5_PROFILE_TIME)
       stats.process_ns += (get_time_ns() - t_proc0);
@@ -1311,6 +1425,7 @@ int main(int argc, char **argv) {
 
     parsed_packet_t pp;
     if (parse_ethernet_frame(norm_data, norm_caplen, &pp) != PARSE_OK) {
+      /* L3/L4 解析失败：当前包放弃，但主流程继续。 */
       stats.parse_fail_packets++;
 #if defined(MARK5_PROFILE_TIME)
       stats.process_ns += (get_time_ns() - t_proc0);
@@ -1326,6 +1441,7 @@ int main(int argc, char **argv) {
     bool is_new = false;
 
 #if defined(MARK5_PROFILE_TIME)
+    /* 阶段 C：对 flow_table 查找/创建单独打点。 */
     uint64_t t_ft0 = get_time_ns();
 #endif
     bench_flow_t *flow = flow_table_get_or_create(flows, &key, h, &is_new);
@@ -1346,6 +1462,12 @@ int main(int argc, char **argv) {
     }
 
     if (is_new) {
+      /*
+       * 新流初始化：
+       * - 固定首包定义的 client/server 方向
+       * - 记录首包签名
+       * - 为 nDPI 分配逐流状态
+       */
       stats.flows_created++;
       flow->client = src_ep;
       flow->server = dst_ep;
@@ -1367,6 +1489,12 @@ int main(int argc, char **argv) {
     }
 
     uint8_t dir = endpoint_equal(&src_ep, &flow->client) ? 0 : 1;
+    /*
+     * 注意：这里先记录“本包到来前，这条流是否已经识别成功”。
+     * 后面就靠这个布尔值把本包计入：
+     * - detecting 阶段
+     * - 或 post 阶段
+     */
     bool was_detected_before_packet = flow->protocol_counted;
     if (dir == 0) {
       flow->c2s_packets++;
@@ -1384,6 +1512,7 @@ int main(int argc, char **argv) {
     in.seen_flow_beginning = (flow->seen_packets == 1);
 
 #if defined(MARK5_PROFILE_TIME)
+    /* 阶段 D：对真正的 nDPI 识别调用单独打点。 */
     uint64_t t_detect0 = get_time_ns();
 #endif
     (void)ndpi_detection_process_packet(ndpi, flow->ndpi_flow, pp.l3, pp.l3_len, flow->last_seen_ms, &in);
@@ -1393,6 +1522,10 @@ int main(int argc, char **argv) {
 #endif
 
     if (!flow->protocol_counted) {
+      /*
+       * nDPI 一旦从 UNKNOWN 变成已知协议，就把“首次识别成功位置”固化下来。
+       * 之后同一条流的后续包都算 post 阶段。
+       */
       uint16_t app = ndpi_get_flow_appprotocol(flow->ndpi_flow);
       if (app != NDPI_PROTOCOL_UNKNOWN) {
         flow->protocol_counted = true;
@@ -1410,16 +1543,19 @@ int main(int argc, char **argv) {
     uint64_t packet_total_ns = t_proc1 - t_proc0;
     uint64_t packet_other_ns = packet_total_ns - detection_cost_ns - flow_table_cost_ns;
     if (was_detected_before_packet) {
+      /* 这包到来之前协议已知，因此把代价累计到 post 阶段。 */
       flow->post_time_ns_total += packet_total_ns;
       flow->post_detection_time_ns_total += detection_cost_ns;
       flow->post_flow_table_time_ns_total += flow_table_cost_ns;
       flow->post_packets++;
     } else {
+      /* 这包发生在首次识别成功之前，因此累计到 detecting 阶段。 */
       flow->detecting_time_ns_total += packet_total_ns;
       flow->detecting_detection_time_ns_total += detection_cost_ns;
       flow->detecting_flow_table_time_ns_total += flow_table_cost_ns;
       flow->detecting_packets++;
       if (flow->seen_packets <= MARK5_FIRST_PACKET_SAMPLES) {
+        /* 额外保留前 20 包逐包样本，便于观察“识别收敛过程”。 */
         size_t idx = (size_t)flow->seen_packets - 1;
         flow->first_packet_total_ns[idx] = packet_total_ns;
         flow->first_packet_detection_ns[idx] = detection_cost_ns;
@@ -1432,6 +1568,7 @@ int main(int argc, char **argv) {
 #endif
 
 #if defined(MARK5_PROFILE_HW)
+    /* 阶段 E：硬件模式下，再读一次“包后”PMU 快照，并做差分。 */
     if (!perf_monitor_read(&perf_monitor, &hw_end)) {
       fprintf(stderr, "Error: perf read(end) failed\n");
       perf_monitor_close(&perf_monitor);
@@ -1443,6 +1580,7 @@ int main(int argc, char **argv) {
     }
     hw_delta = hw_snapshot_delta(&hw_end, &hw_begin);
     if (was_detected_before_packet) {
+      /* 硬件事件也按同样口径分成 detecting / post 两段。 */
       flow->post_instructions_total += hw_delta.instructions;
       flow->post_cycles_total += hw_delta.cycles;
       flow->post_llc_misses_total += hw_delta.llc_misses;
@@ -1485,6 +1623,7 @@ int main(int argc, char **argv) {
          elapsed_sec, (double)stats.pcap_read_ns / 1e9, (double)stats.process_ns / 1e9);
 
   proto_aggregate_ctx_t proto_ctx = {0};
+  /* 阶段 F：把所有 flow 画像聚合成协议画像。 */
   flow_table_foreach(flows, aggregate_proto_cb, &proto_ctx);
   if (proto_ctx.count > 1) qsort(proto_ctx.items, proto_ctx.count, sizeof(proto_stat_t), proto_stat_cmp_desc);
 
