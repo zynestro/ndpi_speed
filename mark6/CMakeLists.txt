@@ -67,6 +67,12 @@ function(configure_mark6_target target_name)
     ${NDPI_INCLUDE_DIR}
   )
 
+  target_compile_definitions(${target_name} PRIVATE
+    NDPI_BENCHMARK_BATCH=1
+    QUEUE_PACKET_DATA_SIZE=2048
+    QUEUE_PACKET_USE_REF=1
+  )
+
   target_link_directories(${target_name} PRIVATE
     ${NDPI_LIB_DIR}
   )

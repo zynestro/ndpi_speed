@@ -154,10 +154,13 @@ uint32_t cost_profile_value_x1000(const cost_profile_t *profile,
 dispatch_context_t *dispatch_context_create(const cost_table_t *table,
                                             const cost_profile_t *profile,
                                             worker_context_t *workers,
-                                            uint32_t num_workers);
+                                            uint32_t num_workers,
+                                            uint32_t num_shards);
 void dispatch_context_destroy(dispatch_context_t *ctx);
 dispatch_result_t dispatch_lookup_or_assign(dispatch_context_t *ctx,
+                                            uint32_t shard_id,
                                             const flow_key_t *key,
+                                            uint64_t key_hash,
                                             uint16_t dst_port,
                                             const uint8_t *payload_prefix,
                                             uint8_t payload_prefix_len);
@@ -165,5 +168,6 @@ const dispatch_stats_t *dispatch_get_stats(const dispatch_context_t *ctx);
 
 void *worker_thread_entry(void *arg);
 void *reader_thread_entry(void *arg);
+void reader_context_cleanup(reader_context_t *ctx);
 
 #endif

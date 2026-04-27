@@ -499,7 +499,8 @@ int main(int argc, char **argv) {
   }
 
   dispatch_context_t *dispatch_ctx =
-      dispatch_context_create(&cost_table, &cost_profile, workers, cfg.num_workers);
+      dispatch_context_create(&cost_table, &cost_profile, workers, cfg.num_workers,
+                              cfg.num_dispatchers);
   if (!dispatch_ctx) {
     fprintf(stderr, "Error: failed to create dispatch context\n");
     for (uint32_t i = 0; i < cfg.num_workers; i++) cleanup_worker(&workers[i]);
@@ -581,6 +582,7 @@ int main(int argc, char **argv) {
   for (uint32_t i = 0; i < cfg.num_workers; i++) {
     pthread_join(workers[i].thread, NULL);
   }
+  reader_context_cleanup(&reader_ctx);
 
   if (reader_ctx.failed) {
     fprintf(stderr, "Error: reader stage failed, benchmark aborted.\n");

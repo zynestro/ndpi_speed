@@ -46,14 +46,23 @@ struct classified_table;
 /* ========================= Packet Queue ========================= */
 /* 队列中每个元素的最大包大小 */
 #define MAX_PACKET_SIZE 65535
+#ifndef QUEUE_PACKET_DATA_SIZE
+#define QUEUE_PACKET_DATA_SIZE MAX_PACKET_SIZE
+#endif
+#ifndef QUEUE_PACKET_USE_REF
+#define QUEUE_PACKET_USE_REF 0
+#endif
 
-/* 队列元素：包含完整的包数据副本 */
+/* 队列元素：默认复制包数据；QUEUE_PACKET_USE_REF=1 时只保存预加载包指针。 */
 typedef struct {
   uint64_t timestamp_us;
+  const uint8_t *data;
   uint16_t caplen;
   uint16_t wirelen;
   uint32_t retire_cost_x1000;
-  uint8_t data[MAX_PACKET_SIZE];
+#if !QUEUE_PACKET_USE_REF
+  uint8_t storage[QUEUE_PACKET_DATA_SIZE];
+#endif
 } queue_packet_t;
 
 /* 线程安全的环形队列 */
@@ -70,7 +79,16 @@ typedef struct {
 typedef struct {
   uint32_t head;     /* 本地写指针（未发布） */
   uint32_t pending;  /* 未发布元素数 */
+  bool locked;       /* 当前 producer 是否持有队列生产者锁 */
 } packet_queue_prod_t;
+
+typedef struct {
+  const uint8_t *data;
+  uint64_t timestamp_us;
+  uint16_t caplen;
+  uint16_t wirelen;
+  uint32_t retire_cost_x1000;
+} packet_queue_batch_item_t;
 
 static inline void packet_queue_pause(void) {
 #if defined(__x86_64__) || defined(__i386__)
@@ -124,6 +142,10 @@ static inline void packet_queue_destroy(packet_queue_t *q) {
 static inline bool packet_queue_push(packet_queue_t *q,
                                      const uint8_t *data, uint16_t caplen, uint16_t wirelen,
                                      uint64_t timestamp_us, uint32_t retire_cost_x1000) {
+#if !QUEUE_PACKET_USE_REF
+  if (caplen > QUEUE_PACKET_DATA_SIZE) return false;
+#endif
+
   pthread_mutex_lock(&q->prod_lock);
 
   uint32_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
@@ -140,12 +162,60 @@ static inline bool packet_queue_push(packet_queue_t *q,
 
   queue_packet_t *slot = &q->buffer[head & q->mask];
   slot->timestamp_us = timestamp_us;
+  slot->data = data;
   slot->caplen = caplen;
   slot->wirelen = wirelen;
   slot->retire_cost_x1000 = retire_cost_x1000;
-  memcpy(slot->data, data, caplen);
+#if !QUEUE_PACKET_USE_REF
+  memcpy(slot->storage, data, caplen);
+  slot->data = slot->storage;
+#endif
 
   atomic_store_explicit(&q->head, head + 1, memory_order_release);
+  pthread_mutex_unlock(&q->prod_lock);
+
+  return true;
+}
+
+static inline bool packet_queue_push_batch(packet_queue_t *q,
+                                           const packet_queue_batch_item_t *items,
+                                           uint32_t count) {
+  if (count == 0) return true;
+  if (count > q->capacity) return false;
+#if !QUEUE_PACKET_USE_REF
+  for (uint32_t i = 0; i < count; i++) {
+    if (items[i].caplen > QUEUE_PACKET_DATA_SIZE) return false;
+  }
+#endif
+
+  pthread_mutex_lock(&q->prod_lock);
+
+  uint32_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
+  uint32_t tail = atomic_load_explicit(&q->tail, memory_order_acquire);
+  while ((head + count - tail) > q->capacity) {
+    if (atomic_load_explicit(&q->finished, memory_order_relaxed)) {
+      pthread_mutex_unlock(&q->prod_lock);
+      return false;
+    }
+    packet_queue_pause();
+    tail = atomic_load_explicit(&q->tail, memory_order_acquire);
+  }
+
+  for (uint32_t i = 0; i < count; i++) {
+    const packet_queue_batch_item_t *item = &items[i];
+    queue_packet_t *slot = &q->buffer[(head + i) & q->mask];
+    slot->timestamp_us = item->timestamp_us;
+    slot->data = item->data;
+    slot->caplen = item->caplen;
+    slot->wirelen = item->wirelen;
+    slot->retire_cost_x1000 = item->retire_cost_x1000;
+#if !QUEUE_PACKET_USE_REF
+    memcpy(slot->storage, item->data, item->caplen);
+    slot->data = slot->storage;
+#endif
+  }
+
+  atomic_store_explicit(&q->head, head + count, memory_order_release);
   pthread_mutex_unlock(&q->prod_lock);
 
   return true;
@@ -185,11 +255,16 @@ static inline void packet_queue_prod_init(packet_queue_t *q, packet_queue_prod_t
   (void)q;
   p->head = 0;
   p->pending = 0;
+  p->locked = false;
 }
 
 /* Producer 提交未发布的元素 */
 static inline void packet_queue_prod_flush(packet_queue_t *q, packet_queue_prod_t *p) {
-  (void)q;
+  if (p->locked) {
+    atomic_store_explicit(&q->head, p->head, memory_order_release);
+    pthread_mutex_unlock(&q->prod_lock);
+    p->locked = false;
+  }
   p->pending = 0;
 }
 
@@ -199,8 +274,49 @@ static inline bool packet_queue_push_cached(packet_queue_t *q,
                                             const uint8_t *data, uint16_t caplen,
                                             uint16_t wirelen, uint64_t timestamp_us,
                                             uint32_t retire_cost_x1000) {
-  (void)p;
-  return packet_queue_push(q, data, caplen, wirelen, timestamp_us, retire_cost_x1000);
+#if !QUEUE_PACKET_USE_REF
+  if (caplen > QUEUE_PACKET_DATA_SIZE) return false;
+#endif
+
+  if (!p->locked) {
+    pthread_mutex_lock(&q->prod_lock);
+
+    uint32_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
+    uint32_t batch_space = QUEUE_COMMIT_BATCH;
+    if (batch_space == 0 || batch_space > q->capacity) batch_space = 1;
+    uint32_t tail = atomic_load_explicit(&q->tail, memory_order_acquire);
+    while ((head + batch_space - tail) > q->capacity) {
+      if (atomic_load_explicit(&q->finished, memory_order_relaxed)) {
+        pthread_mutex_unlock(&q->prod_lock);
+        return false;
+      }
+      packet_queue_pause();
+      tail = atomic_load_explicit(&q->tail, memory_order_acquire);
+    }
+
+    p->head = head;
+    p->pending = 0;
+    p->locked = true;
+  }
+
+  queue_packet_t *slot = &q->buffer[p->head & q->mask];
+  slot->timestamp_us = timestamp_us;
+  slot->data = data;
+  slot->caplen = caplen;
+  slot->wirelen = wirelen;
+  slot->retire_cost_x1000 = retire_cost_x1000;
+#if !QUEUE_PACKET_USE_REF
+  memcpy(slot->storage, data, caplen);
+  slot->data = slot->storage;
+#endif
+
+  p->head++;
+  p->pending++;
+  if (p->pending >= QUEUE_COMMIT_BATCH) {
+    packet_queue_prod_flush(q, p);
+  }
+
+  return true;
 }
 
 /* Parsed view of a packet (Ethernet -> IPv4/IPv6 -> TCP/UDP) */

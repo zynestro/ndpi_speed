@@ -58,3 +58,31 @@ serialization and memory-amplification costs:
    single-packet push.
 
 These changes do not alter nDPI processing or flow-key semantics.
+
+## Implemented in the first patch
+
+The first optimization patch applies the following concrete changes:
+
+- Dispatch affinity is sharded by dispatcher id, matching the existing
+  `flow_hash % num_dispatchers` preprocessing rule.
+- The precomputed `flow_hash` is stored in `dispatch_packet_t` and passed into
+  dispatch lookup, avoiding a repeated hash on every dispatched packet.
+- mark6 builds with batched enqueue enabled.
+- Dispatcher enqueue uses local per-worker staging batches, then publishes a
+  batch to the worker queue with one queue lock acquisition.
+- Queue entries can carry packet data by reference. mark6 enables this mode, so
+  dispatch queues pass pointers into the preloaded packet store instead of
+  copying packet bytes a second time.
+- Preloaded packets are released only after all workers have drained their
+  queues, preserving pointer lifetime in the reference queue mode.
+
+On `input/Monday-WorkingHours.pcap`, this reduced the post-preprocess elapsed
+time from roughly 3.45 s to roughly 1.36 s in the local run. The summed dispatch
+breakdown dropped from roughly 14.58 s to roughly 3.38 s, with `flow->worker`
+falling from roughly 8.29 s to roughly 1.19 s and `enqueue` from roughly 5.72 s
+to roughly 1.61 s.
+
+The remaining dispatch time is now mostly affinity-table lookup/probing,
+per-packet timing overhead, and residual queue publication cost. The next larger
+step would be a more structural queue layout, such as dispatcher-to-worker SPSC
+subqueues, or a sampled/coarse timing mode for throughput runs.

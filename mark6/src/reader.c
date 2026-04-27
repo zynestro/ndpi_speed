@@ -12,10 +12,16 @@
  */
 
 #define PREPROCESS_PACKET_SIZE 1400
+#define DISPATCH_ENQUEUE_BATCH 32
+
+#if QUEUE_PACKET_DATA_SIZE < PREPROCESS_PACKET_SIZE
+#error "QUEUE_PACKET_DATA_SIZE must cover PREPROCESS_PACKET_SIZE"
+#endif
 
 typedef struct {
   uint64_t timestamp_us;
   flow_key_t flow_key;
+  uint64_t flow_hash;
   uint64_t fallback_hash;
   uint32_t dispatcher_id;
   uint16_t caplen;
@@ -114,10 +120,16 @@ static void cleanup_preloaded_packets(reader_context_t *ctx) {
   ctx->dispatcher_indices = NULL;
 }
 
+void reader_context_cleanup(reader_context_t *ctx) {
+  if (!ctx) return;
+  cleanup_preloaded_packets(ctx);
+}
+
 static bool append_packet(dispatch_packet_t **pkts, size_t *count, size_t *cap,
                           const uint8_t *data, uint16_t caplen,
                           uint16_t wirelen, uint64_t ts_us,
-                          const flow_key_t *flow_key, uint64_t fallback_hash,
+                          const flow_key_t *flow_key, uint64_t flow_hash,
+                          uint64_t fallback_hash,
                           uint32_t dispatcher_id, uint16_t dst_port,
                           const uint8_t *payload_prefix, uint8_t payload_prefix_len,
                           bool has_flow_key) {
@@ -137,6 +149,7 @@ static bool append_packet(dispatch_packet_t **pkts, size_t *count, size_t *cap,
   p->timestamp_us = ts_us;
   memset(&p->flow_key, 0, sizeof(p->flow_key));
   if (flow_key) p->flow_key = *flow_key;
+  p->flow_hash = flow_hash;
   p->fallback_hash = fallback_hash;
   p->dispatcher_id = dispatcher_id;
   p->caplen = stored_caplen;
@@ -338,6 +351,7 @@ static bool load_pcap_packets(reader_context_t *ctx,
                                 pkt_data, pkt_caplen, pkt_wirelen,
                                 ts_us,
                                 has_flow_key ? &flow_key : NULL,
+                                has_flow_key ? flow_hash : fallback_hash,
                                 fallback_hash,
                                 dispatcher_id,
                                 dst_port,
@@ -377,6 +391,27 @@ static void merge_dispatcher_stats(reader_context_t *ctx,
   pthread_mutex_unlock(&ctx->stats_lock);
 }
 
+#ifdef NDPI_BENCHMARK_BATCH
+static bool flush_enqueue_batch(reader_context_t *ctx,
+                                uint32_t worker_id,
+                                packet_queue_batch_item_t batches[MAX_WORKERS][DISPATCH_ENQUEUE_BATCH],
+                                uint32_t counts[MAX_WORKERS]) {
+  uint32_t count = counts[worker_id];
+  if (count == 0) return true;
+
+  bool ok = packet_queue_push_batch(ctx->workers[worker_id].queue,
+                                    batches[worker_id],
+                                    count);
+  if (ok) {
+    atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
+                              count,
+                              memory_order_relaxed);
+  }
+  counts[worker_id] = 0;
+  return ok;
+}
+#endif
+
 static void *dispatcher_thread_entry(void *arg) {
   dispatcher_arg_t *darg = (dispatcher_arg_t *)arg;
   reader_context_t *ctx = darg->ctx;
@@ -391,10 +426,8 @@ static void *dispatcher_thread_entry(void *arg) {
   }
 
 #ifdef NDPI_BENCHMARK_BATCH
-  packet_queue_prod_t prod[MAX_WORKERS];
-  for (uint32_t i = 0; i < ctx->num_workers; i++) {
-    packet_queue_prod_init(ctx->workers[i].queue, &prod[i]);
-  }
+  packet_queue_batch_item_t enqueue_batches[MAX_WORKERS][DISPATCH_ENQUEUE_BATCH];
+  uint32_t enqueue_counts[MAX_WORKERS] = {0};
 #endif
 
   uint64_t rss_lookup_ns = 0;
@@ -421,7 +454,9 @@ static void *dispatcher_thread_entry(void *arg) {
     uint32_t retire_cost_x1000 = 0;
     if (pkt->has_flow_key) {
       dispatch_result_t dr = dispatch_lookup_or_assign(ctx->dispatch,
+                                                       pkt->dispatcher_id,
                                                        &pkt->flow_key,
+                                                       pkt->flow_hash,
                                                        pkt->dst_port,
                                                        pkt->payload_prefix,
                                                        pkt->payload_prefix_len);
@@ -437,24 +472,36 @@ static void *dispatcher_thread_entry(void *arg) {
 
     uint64_t t_enq0 = get_time_ns();
 #ifdef NDPI_BENCHMARK_BATCH
-    (void)packet_queue_push_cached(ctx->workers[worker_id].queue,
-                                   &prod[worker_id],
-                                   pkt->data,
-                                   pkt->caplen,
-                                   pkt->wirelen,
-                                   pkt->timestamp_us,
-                                   retire_cost_x1000);
+    uint32_t batch_pos = enqueue_counts[worker_id]++;
+    packet_queue_batch_item_t *item = &enqueue_batches[worker_id][batch_pos];
+    item->data = pkt->data;
+    item->timestamp_us = pkt->timestamp_us;
+    item->caplen = pkt->caplen;
+    item->wirelen = pkt->wirelen;
+    item->retire_cost_x1000 = retire_cost_x1000;
+    bool enqueued = true;
+    if (enqueue_counts[worker_id] >= DISPATCH_ENQUEUE_BATCH) {
+      enqueued = flush_enqueue_batch(ctx, worker_id,
+                                     enqueue_batches,
+                                     enqueue_counts);
+    }
 #else
-    (void)packet_queue_push(ctx->workers[worker_id].queue,
-                            pkt->data,
-                            pkt->caplen,
-                            pkt->wirelen,
-                            pkt->timestamp_us,
-                            retire_cost_x1000);
+    bool enqueued = packet_queue_push(ctx->workers[worker_id].queue,
+                                      pkt->data,
+                                      pkt->caplen,
+                                      pkt->wirelen,
+                                      pkt->timestamp_us,
+                                      retire_cost_x1000);
 #endif
-    atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
-                              1,
-                              memory_order_relaxed);
+#ifndef NDPI_BENCHMARK_BATCH
+    if (enqueued) {
+      atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
+                                1,
+                                memory_order_relaxed);
+    }
+#else
+    (void)enqueued;
+#endif
     uint64_t t_enq1 = get_time_ns();
     uint64_t d_enq_ns = t_enq1 - t_enq0;
     enqueue_ns += d_enq_ns;
@@ -466,9 +513,12 @@ static void *dispatcher_thread_entry(void *arg) {
   }
 
 #ifdef NDPI_BENCHMARK_BATCH
+  uint64_t t_flush0 = get_time_ns();
   for (uint32_t i = 0; i < ctx->num_workers; i++) {
-    packet_queue_prod_flush(ctx->workers[i].queue, &prod[i]);
+    (void)flush_enqueue_batch(ctx, i, enqueue_batches, enqueue_counts);
   }
+  uint64_t t_flush1 = get_time_ns();
+  enqueue_ns += (t_flush1 - t_flush0);
 #endif
 
   merge_dispatcher_stats(ctx, rss_lookup_ns, enqueue_ns, read_other_ns);
@@ -558,7 +608,6 @@ void *reader_thread_entry(void *arg) {
     packet_queue_finish(ctx->workers[i].queue);
   }
 
-  cleanup_preloaded_packets(ctx);
   pthread_mutex_destroy(&ctx->stats_lock);
   finalize_reader_timers(ctx);
   return NULL;
