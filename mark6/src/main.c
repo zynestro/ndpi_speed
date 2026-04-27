@@ -140,10 +140,56 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
   }
 
   if (num_workers > 1) {
+    uint64_t core_type_packets[COST_CORE_TYPES] = {0};
+    uint64_t core_type_bytes[COST_CORE_TYPES] = {0};
+    uint64_t core_type_flows[COST_CORE_TYPES] = {0};
+    uint64_t core_type_process_ns[COST_CORE_TYPES] = {0};
+    uint32_t core_type_workers[COST_CORE_TYPES] = {0};
+    double min_worker_pps = 0.0;
+    double max_worker_pps = 0.0;
+    uint32_t min_worker_pps_id = 0;
+    uint32_t max_worker_pps_id = 0;
+    double min_worker_avg_pkt = 0.0;
+    double max_worker_avg_pkt = 0.0;
+    uint32_t min_worker_avg_pkt_id = 0;
+    uint32_t max_worker_avg_pkt_id = 0;
+    bool have_worker_load = false;
+
     printf("\nPer-Worker Statistics:\n");
     for (uint32_t i = 0; i < num_workers; i++) {
       double w_pps = (effective_elapsed_sec > 0.0) ? (double)workers[i].packets_processed / effective_elapsed_sec : 0.0;
       double w_gbps = (effective_elapsed_sec > 0.0) ? ((double)workers[i].bytes_processed * 8.0) / effective_elapsed_sec / 1e9 : 0.0;
+      double w_avg_pkt = workers[i].packets_processed
+                             ? (double)workers[i].bytes_processed / (double)workers[i].packets_processed
+                             : 0.0;
+      uint8_t type = core_type_from_core_id(workers[i].cpu_core);
+      if (type >= COST_CORE_TYPES) type = CORE_TYPE_P;
+      core_type_packets[type] += workers[i].packets_processed;
+      core_type_bytes[type] += workers[i].bytes_processed;
+      core_type_flows[type] += workers[i].flows_created_total;
+      core_type_workers[type]++;
+      if (workers[i].processing_time_ns > core_type_process_ns[type]) {
+        core_type_process_ns[type] = workers[i].processing_time_ns;
+      }
+      if (workers[i].packets_processed > 0) {
+        if (!have_worker_load || w_pps < min_worker_pps) {
+          min_worker_pps = w_pps;
+          min_worker_pps_id = i;
+        }
+        if (!have_worker_load || w_pps > max_worker_pps) {
+          max_worker_pps = w_pps;
+          max_worker_pps_id = i;
+        }
+        if (!have_worker_load || w_avg_pkt < min_worker_avg_pkt) {
+          min_worker_avg_pkt = w_avg_pkt;
+          min_worker_avg_pkt_id = i;
+        }
+        if (!have_worker_load || w_avg_pkt > max_worker_avg_pkt) {
+          max_worker_avg_pkt = w_avg_pkt;
+          max_worker_avg_pkt_id = i;
+        }
+        have_worker_load = true;
+      }
       printf("  Worker %2u [Core %2u]: %.2f Mpps, %.2f Gbps, %lu flows, %.3f s proc "
              "(parse %.3f, flow %.3f, ndpi %.3f)\n",
              i, workers[i].cpu_core,
@@ -153,6 +199,82 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
              (double)workers[i].parse_time_ns / 1000000000.0,
              (double)workers[i].flow_time_ns / 1000000000.0,
              (double)workers[i].ndpi_time_ns / 1000000000.0);
+    }
+
+    printf("\nPer-Worker Load Details:\n");
+    printf("  Worker Core Type Packets Pkt%% Bytes(MB) Byte%% AvgB/Pkt Flows Flow%% Pkts/Flow Proc(ns/pkt)\n");
+    for (uint32_t i = 0; i < num_workers; i++) {
+      uint64_t packets = workers[i].packets_processed;
+      uint64_t bytes = workers[i].bytes_processed;
+      uint64_t flows = workers[i].flows_created_total;
+      double pkt_pct = total_packets ? (double)packets * 100.0 / (double)total_packets : 0.0;
+      double byte_pct = total_bytes ? (double)bytes * 100.0 / (double)total_bytes : 0.0;
+      double flow_pct = total_flows ? (double)flows * 100.0 / (double)total_flows : 0.0;
+      double avg_pkt = packets ? (double)bytes / (double)packets : 0.0;
+      double pkts_per_flow = flows ? (double)packets / (double)flows : 0.0;
+      double proc_ns_per_pkt = packets
+                                   ? (double)workers[i].processing_time_ns / (double)packets
+                                   : 0.0;
+      const char *type_name =
+          (core_type_from_core_id(workers[i].cpu_core) == CORE_TYPE_P) ? "P" : "E";
+      printf("  %6u %4u %4s %7lu %5.1f %9.2f %5.1f %8.1f %5lu %5.1f %9.1f %12.1f\n",
+             i,
+             workers[i].cpu_core,
+             type_name,
+             (unsigned long)packets,
+             pkt_pct,
+             (double)bytes / 1024.0 / 1024.0,
+             byte_pct,
+             avg_pkt,
+             (unsigned long)flows,
+             flow_pct,
+             pkts_per_flow,
+             proc_ns_per_pkt);
+    }
+
+    printf("\nCore-Type Load Summary:\n");
+    printf("  Type Workers Packets Pkt%% Bytes(MB) Byte%% AvgB/Pkt Flows Flow%% Throughput(Mpps) Bandwidth(Gbps) MaxProc(s)\n");
+    for (uint32_t type = 0; type < COST_CORE_TYPES; type++) {
+      uint64_t packets = core_type_packets[type];
+      uint64_t bytes = core_type_bytes[type];
+      uint64_t flows = core_type_flows[type];
+      double pkt_pct = total_packets ? (double)packets * 100.0 / (double)total_packets : 0.0;
+      double byte_pct = total_bytes ? (double)bytes * 100.0 / (double)total_bytes : 0.0;
+      double flow_pct = total_flows ? (double)flows * 100.0 / (double)total_flows : 0.0;
+      double avg_pkt = packets ? (double)bytes / (double)packets : 0.0;
+      double type_pps = effective_elapsed_sec > 0.0 ? (double)packets / effective_elapsed_sec : 0.0;
+      double type_gbps = effective_elapsed_sec > 0.0 ? (double)bytes * 8.0 / effective_elapsed_sec / 1e9 : 0.0;
+      printf("  %4s %7u %7lu %5.1f %9.2f %5.1f %8.1f %5lu %5.1f %16.2f %15.2f %10.3f\n",
+             type == CORE_TYPE_P ? "P" : "E",
+             core_type_workers[type],
+             (unsigned long)packets,
+             pkt_pct,
+             (double)bytes / 1024.0 / 1024.0,
+             byte_pct,
+             avg_pkt,
+             (unsigned long)flows,
+             flow_pct,
+             type_pps / 1e6,
+             type_gbps,
+             (double)core_type_process_ns[type] / 1000000000.0);
+    }
+
+    if (have_worker_load) {
+      double pps_ratio = min_worker_pps > 0.0 ? max_worker_pps / min_worker_pps : 0.0;
+      double avg_pkt_ratio = min_worker_avg_pkt > 0.0 ? max_worker_avg_pkt / min_worker_avg_pkt : 0.0;
+      printf("\nLoad Imbalance Hints:\n");
+      printf("  Worker PPS min/max: worker %u %.2f Mpps, worker %u %.2f Mpps (%.2fx)\n",
+             min_worker_pps_id,
+             min_worker_pps / 1e6,
+             max_worker_pps_id,
+             max_worker_pps / 1e6,
+             pps_ratio);
+      printf("  Avg packet size min/max: worker %u %.1f B, worker %u %.1f B (%.2fx)\n",
+             min_worker_avg_pkt_id,
+             min_worker_avg_pkt,
+             max_worker_avg_pkt_id,
+             max_worker_avg_pkt,
+             avg_pkt_ratio);
     }
 
     double base_pps = (effective_elapsed_sec > 0.0) ? (double)workers[0].packets_processed / effective_elapsed_sec : 0.0;
