@@ -1,99 +1,92 @@
-# Paper Experiment Plan for mark5 / mark6
+# mark5 / mark6 论文实验计划
 
-## 1. Immediate Clarification: How to Understand Current mark6
+## 1. 先澄清：如何理解当前 mark6
 
-### 1.1 Correct mental model
+### 1.1 正确的心智模型
 
-If we temporarily ignore `Preprocess Time`, current `mark6` can be understood as:
+如果暂时不考虑 `Preprocess Time`，当前 `mark6` 可以抽象成：
 
 ```text
-hardware RSS / input backend
-  -> dispatch stage
+hardware RSS / 输入后端
+  -> dispatch 阶段
       -> flow affinity lookup
-      -> first-flow worker assignment
+      -> 首次出现 flow 的 worker 分配
       -> worker queue enqueue
-  -> worker stage
+  -> worker 阶段
       -> parse
-      -> worker-private flow table
+      -> worker 私有 flow table
       -> nDPI detection
       -> protocol accounting
 ```
 
-This is a useful abstraction for the paper because the controlled experiment is
-about scheduling policy, not about disk IO.
+这个抽象对论文是有用的，因为受控实验主要考察调度策略，而不是磁盘 IO。
 
-However, the exact current implementation is:
+但当前代码的真实实现是：
 
 ```text
-pcap preload / software simulated RSS
+pcap preload / 软件模拟 RSS
   -> dispatcher shards
   -> worker queues
   -> worker nDPI processing
 ```
 
-The preprocess stage is not literally hardware RSS. It currently performs:
+所以 preprocess 阶段不是真正的硬件 RSS。它当前做了：
 
-- `pcap_next_ex()`;
-- link-layer normalization;
-- packet parsing;
-- bidirectional flow-key construction;
-- `flow_hash` computation;
-- `dispatcher_id = flow_hash % num_dispatchers`;
-- packet copy into `dispatch_packet_t`.
+- `pcap_next_ex()`；
+- 链路层标准化；
+- 报文解析；
+- 双向归一化 flow key 构造；
+- `flow_hash` 计算；
+- `dispatcher_id = flow_hash % num_dispatchers`；
+- 将包复制到 `dispatch_packet_t`。
 
-In a DPDK implementation, parts of this would move:
+如果后续实现 DPDK 路径，这些工作会发生变化：
 
-- pcap IO disappears;
-- hardware RSS can deliver packets to RX queues;
-- mbuf pointers replace copied pcap packet buffers;
-- software still needs enough parsing/key normalization if hardware RSS does
-  not provide the exact canonical bidirectional key required by the scheduler.
+- pcap IO 消失；
+- 硬件 RSS 可以把包送到 RX queues；
+- mbuf 指针替代 pcap 包缓冲区复制；
+- 如果硬件 RSS 不能提供调度器所需的 canonical bidirectional key，软件仍然需要做足够的解析和 key 归一化。
 
-### 1.2 What happens when a flow enters dispatch
+### 1.2 flow 进入 dispatch 后发生什么
 
-For packets with a valid flow key:
+对于有合法 flow key 的包：
 
-1. Preprocess has already built a canonical bidirectional `flow_key`.
-2. Preprocess has already computed `flow_hash`.
-3. Preprocess assigns `dispatcher_id = flow_hash % num_dispatchers`.
-4. Dispatcher calls `dispatch_lookup_or_assign()`.
-5. Dispatch checks the shard-local affinity table.
-6. If this is an existing flow, dispatch returns the previously assigned worker.
-7. If this is a new flow, dispatch calculates a cost bucket and runs the current
-   policy to pick a worker.
-8. Dispatcher enqueues the packet to that worker.
-9. Worker consumes the packet and runs its private nDPI state.
+1. Preprocess 已经构造好了 canonical bidirectional `flow_key`。
+2. Preprocess 已经计算好了 `flow_hash`。
+3. Preprocess 分配 `dispatcher_id = flow_hash % num_dispatchers`。
+4. Dispatcher 调用 `dispatch_lookup_or_assign()`。
+5. Dispatch 在 shard-local affinity table 中查找该 flow。
+6. 如果是已有 flow，dispatch 直接返回之前分配的 worker。
+7. 如果是新 flow，dispatch 计算 cost bucket，并运行当前调度策略选择 worker。
+8. Dispatcher 将包 enqueue 到目标 worker。
+9. Worker 消费该包，并在自己的私有 nDPI 状态中处理它。
 
-Core code references:
+核心代码核实：
 
-- canonical flow key and hash in preprocess: `mark6/src/reader.c:317-327`
-- dispatcher id from hash: `mark6/src/reader.c:338-343`
-- dispatch call with precomputed hash: `mark6/src/reader.c:456-462`
-- affinity lookup and first-flow assignment: `mark6/src/dispatch.c:208-294`
-- cost-aware worker selection: `mark6/src/dispatch.c:75-113`
-- worker consume loop: `mark6/src/worker.c:384-409`
+- preprocess 中 canonical flow key 和 hash：`mark6/src/reader.c:317-327`
+- hash 到 dispatcher id：`mark6/src/reader.c:338-343`
+- dispatch 调用时传入预计算 hash：`mark6/src/reader.c:456-462`
+- affinity lookup 和首次 flow 分配：`mark6/src/dispatch.c:208-294`
+- cost-aware worker 选择：`mark6/src/dispatch.c:75-113`
+- worker 消费循环：`mark6/src/worker.c:384-409`
 
-### 1.3 Important nuance: bidirectional hash
+### 1.3 关键细节：双向 hash
 
-The “two directions hash to the same flow” property comes from the canonical
-`flow_key`, not from ordinary NIC RSS alone.
+“两个方向 hash 到同一个 flow”这个性质来自 canonical `flow_key`，不是普通 NIC RSS 自然保证的。
 
-Current software does:
+当前软件路径做的是：
 
 ```text
 packet -> parsed 5-tuple -> canonical bidirectional flow_key -> flow_key_hash
 ```
 
-So A->B and B->A map to the same dispatch entry. If real hardware RSS is used,
-we must confirm whether the NIC RSS configuration is symmetric and whether its
-tuple definition matches our flow affinity requirement. Otherwise, the DPDK path
-still needs software canonicalization before dispatch.
+因此 A->B 和 B->A 会映射到同一个 dispatch entry。若使用真实硬件 RSS，需要确认 NIC RSS 是否支持对称 RSS，以及它的 tuple 定义是否和我们的 flow affinity 要求一致。否则，DPDK 路径在 dispatch 前仍然需要软件 canonicalization。
 
-## 2. Hash Cost and Time Accounting
+## 2. Hash 成本与时间口径
 
-### 2.1 Current hash time
+### 2.1 当前 hash 时间
 
-Using the representative run:
+以一组代表性运行为例：
 
 ```text
 Total Elapsed Time:              14.198593 s
@@ -104,21 +97,20 @@ Dispatch flow->worker map:        1.185542 s
 Dispatch enqueue:                 1.494571 s
 ```
 
-The current `Preprocess hash` bucket is not just the hash function alone. It
-includes:
+当前 `Preprocess hash` 不是纯 hash 函数耗时，它包括：
 
-- Ethernet/IP/TCP/UDP parse;
-- canonical flow key construction;
-- flow hash;
-- dst port and payload prefix extraction.
+- Ethernet/IP/TCP/UDP parse；
+- canonical flow key 构造；
+- flow hash；
+- dst port 和 payload prefix 提取。
 
-Code reference:
+代码核实：
 
-- timed region begins before parse: `mark6/src/reader.c:306`
-- parse/key/hash/prefix work: `mark6/src/reader.c:317-327`
-- timed region ends: `mark6/src/reader.c:333-336`
+- 计时区域在 parse 之前开始：`mark6/src/reader.c:306`
+- parse/key/hash/prefix 逻辑：`mark6/src/reader.c:317-327`
+- 计时区域结束：`mark6/src/reader.c:333-336`
 
-Approximate ratios:
+近似占比：
 
 ```text
 Preprocess hash / Total Elapsed     = 1.061632 / 14.198593 ~= 7.5%
@@ -126,22 +118,19 @@ Preprocess hash / Preprocess        = 1.061632 / 12.863259 ~= 8.3%
 Preprocess hash / No-Preprocess     = 1.061632 / 1.335334 ~= 79.5%
 ```
 
-The last ratio is not a fair “current dispatch cost” comparison because this
-hash work is intentionally excluded from `Elapsed Time (No Preprocess)`. It is
-useful only as a warning: if a live implementation has to do full software
-parse+canonical hash before dispatch, that cost is large enough to matter.
+最后一个比例不能直接理解为“当前 dispatch 成本对比”，因为这部分 hash 工作被有意排除在 `Elapsed Time (No Preprocess)` 之外。它的意义是提醒我们：如果在线实现必须在 dispatch 前做完整软件 parse + canonical hash，这部分成本会非常重要。
 
-For packet-level intuition, on the Monday trace with roughly 11.66M packets:
+按包计算，在 Monday trace 约 11.66M 包时：
 
 ```text
 1.061632 s / 11.655M packets ~= 91 ns/packet
 ```
 
-This is small per packet, but large in aggregate.
+单包看起来不大，但总量上不可忽略。
 
-### 2.2 Current throughput denominator
+### 2.2 当前吞吐的分母
 
-Current `mark6` throughput uses:
+当前 `mark6` 的吞吐计算是：
 
 ```text
 effective_elapsed_sec = total_elapsed_sec - preprocess_sec
@@ -149,558 +138,542 @@ throughput_mpps       = total_packets / effective_elapsed_sec / 1e6
 bandwidth_gbps        = total_bytes * 8 / effective_elapsed_sec / 1e9
 ```
 
-Code references:
+代码核实：
 
-- effective elapsed: `mark6/src/main.c:41-43`
-- throughput and bandwidth: `mark6/src/main.c:85-87`
-- printed values: `mark6/src/main.c:126-129`
+- effective elapsed：`mark6/src/main.c:41-43`
+- throughput 和 bandwidth：`mark6/src/main.c:85-87`
+- 输出位置：`mark6/src/main.c:126-129`
 
-This means current `Throughput` is not disk-to-result throughput. It is an
-offline replay effective throughput after preload.
+因此当前 `Throughput` 不是 disk-to-result 的端到端吞吐，而是 pcap preload 之后的 offline replay effective throughput。
 
-Paper wording should be explicit:
+论文中需要明确写清楚：
 
-> We report effective replay throughput over the dispatch-and-worker interval,
-> excluding the offline pcap preload stage.
+> 除非特别说明，我们报告的是 dispatch-and-worker interval 上的 effective replay throughput，不包含 offline pcap preload 阶段。
 
-If the paper also reports end-to-end offline throughput, use:
+如果论文也报告离线端到端吞吐，可以使用：
 
 ```text
 end_to_end_mpps = total_packets / total_elapsed_sec / 1e6
 ```
 
-Both numbers are valid, but they answer different questions.
+两个数字都有效，但回答的是不同问题。
 
-### 2.3 Why Dispatch(Read) can exceed wall-clock
+### 2.3 为什么 Dispatch(Read) 可能大于墙钟时间
 
-`Dispatch(Read) Time` is the sum of per-dispatcher measured time components:
+`Dispatch(Read) Time` 是多个 dispatcher 线程内计时分项的总和：
 
 ```text
 Dispatch(Read) = sum(dispatcher flow->worker + enqueue + other)
 ```
 
-Because multiple dispatchers run in parallel, this cumulative CPU-time-like
-number can be greater than the real wall-clock `Elapsed Time (No Preprocess)`.
+多个 dispatcher 并行运行，所以这个类似 CPU-time 的累计值可以大于真实墙钟 `Elapsed Time (No Preprocess)`。
 
-Code references:
+代码核实：
 
-- dispatcher local timers: `mark6/src/reader.c:433-435`
-- merge into reader context: `mark6/src/reader.c:383-391`
-- final `read_time_ns`: `mark6/src/reader.c:107-109`
+- dispatcher 本地计时：`mark6/src/reader.c:433-435`
+- 合并到 reader context：`mark6/src/reader.c:383-391`
+- 最终 `read_time_ns`：`mark6/src/reader.c:107-109`
 
-Likewise, worker sub-components such as `Process nDPI` are cumulative across
-workers, while `Process Time` is the maximum worker processing time.
+同理，`Process nDPI` 等 worker 子项是多个 worker 的累计值，而 `Process Time` 是所有 worker 中最大的 `processing_time_ns`。
 
-Code references:
+代码核实：
 
-- max worker process time: `mark6/src/main.c:67-69`
-- cumulative worker sub-components: `mark6/src/main.c:73-82`
+- worker 最大 process time：`mark6/src/main.c:67-69`
+- worker 子项累计：`mark6/src/main.c:73-82`
 
-## 3. DPDK vs Current pcap Replay
+## 3. DPDK 与当前 pcap replay 的关系
 
-### 3.1 Which is faster?
+### 3.1 哪个更快？
 
-It depends on the boundary.
+取决于比较边界。
 
-For raw input, DPDK is expected to be much faster than current pcap input:
+如果看原始输入路径，DPDK 预期会明显快于当前 pcap 输入：
 
-- DPDK avoids `pcap_next_ex()`;
-- DPDK avoids disk/file parsing during the hot path;
-- DPDK receives packets in bursts;
-- DPDK passes mbuf pointers instead of copying pcap bytes.
+- DPDK 避免 `pcap_next_ex()`；
+- DPDK 避免热路径上的磁盘/文件解析；
+- DPDK 使用 burst 收包；
+- DPDK 传递 mbuf 指针，而不是复制 pcap bytes。
 
-But current `mark6` effective throughput excludes pcap preload. It measures only
-the in-memory dispatch+worker interval. That number can be higher than a real
-DPDK end-to-end number because it ignores NIC RX, mbuf allocation/recycling,
-PCIe, memory placement, burst scheduling, and driver overhead.
+但当前 `mark6` 的 effective throughput 排除了 pcap preload，只测量内存中的 dispatch + worker 阶段。因此这个数字可能高于真实 DPDK 端到端数字，因为它忽略了 NIC RX、mbuf 分配/回收、PCIe、内存放置、burst 调度和驱动开销。
 
-### 3.2 Recommended paper framing
+### 3.2 推荐论文表述
 
-Use current pcap replay for controlled policy comparison:
+用当前 pcap replay 做受控策略对比：
 
 ```text
 Same trace, same workers, same cost table, same replay input.
 Compare only scheduling policy behavior.
 ```
 
-Use DPDK as a separate system validation:
+把 DPDK 单独作为系统验证：
 
 ```text
 Real RX path, hardware queues/RSS, realistic packet ingress.
 Compare Ours against DPDK RSS baseline.
 ```
 
-Avoid putting pcap replay effective throughput and DPDK live-RX throughput in
-one figure as if they are the same metric. If both appear, label them clearly:
+不要把 pcap replay effective throughput 和 DPDK live-RX throughput 放在同一张图中当作同一种指标。如果必须同时出现，要明确标注：
 
-- `offline replay effective throughput`;
-- `DPDK live-RX end-to-end throughput`.
+- `offline replay effective throughput`；
+- `DPDK live-RX end-to-end throughput`。
 
-## 4. Paper Structure Assessment
+## 4. 论文结构评估
 
-### 4.1 Overall assessment
+### 4.1 总体判断
 
-The paper can be split cleanly:
+论文可以清晰分成两部分：
 
-1. `mark5`: measurement study and offline profiling evidence.
-2. `mark6`: scheduling design and evaluation prototype.
+1. `mark5`：measurement study 和 offline profiling 证据；
+2. `mark6`：调度设计与 evaluation prototype。
 
-The measurement side is currently stronger than the evaluation side.
+目前 measurement 侧强于 evaluation 侧。
 
-`mark5` already supports a strong story:
+`mark5` 已经能支撑比较强的故事：
 
-- protocol detection cost differs significantly;
-- P/E behavior differs but is relatively stable;
-- first-packet-visible features can be used to build a lookup table;
-- hardware counters explain part of the behavior.
+- protocol detection cost 存在显著差异；
+- P/E 行为不同，但整体相对稳定；
+- 首包可见特征可以用来构建 lookup table；
+- 硬件计数器可以解释部分行为。
 
-`mark6` currently supports:
+`mark6` 当前支持：
 
-- an executable cost-aware scheduling prototype;
-- hash-only baseline;
-- per-worker/P/E load observation;
-- dispatch overhead observation.
+- 可运行的 cost-aware 调度原型；
+- hash-only baseline；
+- per-worker / P/E load observation；
+- dispatch overhead observation。
 
-`mark6` does not yet fully support a paper-grade evaluation matrix because it
-lacks runtime policy baselines, structured output, repeated trials, and true
-tail latency metrics.
+但 `mark6` 还没有完全支撑 paper-grade evaluation matrix，因为它缺少 runtime policy baselines、结构化输出、重复实验，以及真实 tail latency 指标。
 
-## 5. Section II Measurement Study: Review and Required Additions
+## 5. §II Measurement Study：审查与补充项
 
-### 5.1 Strengths of the current outline
+### 5.1 当前大纲的强项
 
-The proposed Measurement Study section is well motivated:
+当前 Measurement Study 的动机是成立的：
 
-- It is explicitly your measurement, not background.
-- It isolates P/E cores and protocol costs.
-- It connects directly to the design need for cost-aware scheduling.
-- It naturally explains why offline cost modeling is plausible.
+- 明确这是你的 measurement，而不是 background；
+- 隔离 P/E 核与协议成本；
+- 直接连接到 cost-aware scheduling 的设计需求；
+- 自然解释为什么 offline cost modeling 是可行的。
 
-### 5.2 Suggested refinements
+### 5.2 建议 refinement
 
-#### Current O1: protocol cost differs significantly
+#### 当前 O1：协议成本差异显著
 
-Keep this, but report both:
+保留这个观察，但建议同时报告：
 
-- flow-weighted distribution;
-- protocol-weighted distribution.
+- flow-weighted distribution；
+- protocol-weighted distribution。
 
-Reason: a trace dominated by ICMP or one large protocol can make flow-weighted
-means look overly stable. A protocol-weighted view prevents the claim from being
-over-dominated by popular protocols.
+原因是：如果某个 trace 被 ICMP 或某个大协议主导，flow-weighted mean 可能看起来过于稳定。protocol-weighted view 可以避免结论被热门协议过度支配。
 
-Recommended figures:
+推荐图：
 
-- Figure 1(a): per-protocol detection cost, P/E side-by-side.
-- Figure 1(b): detection cost CDF or violin plot.
-- Optional: top-k protocols plus an “others” group for readability.
+- Figure 1(a)：per-protocol detection cost，P/E 并列；
+- Figure 1(b)：detection cost CDF 或 violin plot；
+- 可选：top-k protocols + others，增强可读性。
 
-Recommended statistics:
+推荐统计：
 
-- min / median / p90 / p99 protocol cost;
-- max/min ratio;
-- Spearman correlation across traces;
-- number of protocols and flows after filtering.
+- min / median / p90 / p99 protocol cost；
+- max/min ratio；
+- 跨 trace 的 Spearman correlation；
+- 过滤后的 protocol 数量和 flow 数量。
 
-#### Current O2: P/E speedup approximately stable
+#### 当前 O2：P/E speedup 近似稳定
 
-This is good, but phrase carefully. Current evidence supports “relatively
-stable across many protocols,” not necessarily perfectly constant.
+这个观察很好，但措辞要谨慎。当前证据支持“在许多协议上相对稳定”，不一定支持“严格恒定”。
 
-Recommended metrics:
+推荐指标：
 
-- median E/P detection-time ratio;
-- interquartile range;
-- coefficient of variation;
-- per-trace boxplot of E/P speedup;
-- IPC ratio and LLC miss ratio correlation.
+- median E/P detection-time ratio；
+- interquartile range；
+- coefficient of variation；
+- per-trace E/P speedup boxplot；
+- IPC ratio 与 LLC miss ratio correlation。
 
-Recommended figure:
+推荐图：
 
-- Figure 2(a): E/P detection cost ratio by protocol.
-- Figure 2(b): IPC and LLC miss ratio summary or scatter.
+- Figure 2(a)：按协议展示 E/P detection cost ratio；
+- Figure 2(b)：IPC 和 LLC miss ratio summary 或 scatter。
 
-#### Add O3: first-packet features are usable but imperfect
+#### 增加 O3：首包特征可用但不完美
 
-This observation is important for the bootstrapping problem:
+这个观察对 bootstrapping problem 很重要：
 
 ```text
-The scheduler needs cost before nDPI identifies the protocol.
+调度器需要在 nDPI 识别协议之前知道成本。
 ```
 
-Existing mark5 data already has first-packet signature outputs. The paper should
-show lookup quality:
+现有 mark5 数据已经有 first-packet signature 输出。论文应展示 lookup quality：
 
-- coverage;
-- purity;
-- bucket accuracy;
-- default bucket rate;
-- how many rules come from port-only vs port+prefix.
+- coverage；
+- purity；
+- bucket accuracy；
+- default bucket rate；
+- 规则来源：port-only 还是 port+prefix。
 
-This turns the design transition from “we measured protocol cost” into “we can
-estimate cost before classification.”
+这样 §II 到 §III 的过渡就不只是“我们测到了协议成本”，而是“我们可以在分类前估计成本”。
 
-### 5.3 Dataset table is needed
+### 5.3 需要 dataset table
 
-Add a compact dataset table:
+建议增加一张紧凑的数据集表：
 
 ```text
 Trace | Packets | Bytes | Flows | Detected Flows | Top Protocols | Avg Packet Size
 ```
 
-This defends representativeness and helps reviewers interpret protocol skew.
+这张表用于回应 trace 代表性，并帮助审稿人理解协议分布偏斜。
 
-## 6. Section IV Evaluation: Review and Required Additions
+## 6. §IV Evaluation：审查与补充项
 
-### 6.1 Current outline strength
+### 6.1 当前大纲的强项
 
-The proposed baselines table is directionally right:
+你提出的 baseline 表方向是对的：
 
 ```text
 RSS | JSQ | Static Pool | Ours | Oracle
 ```
 
-The axes are also right:
+几个维度也合理：
 
-- load-aware;
-- cost-aware;
-- core-aware;
-- dynamic.
+- load-aware；
+- cost-aware；
+- core-aware；
+- dynamic。
 
-### 6.2 Current risk
+### 6.2 当前风险
 
-The current implementation only directly supports:
+当前实现直接支持的只有：
 
-- hash-only target, which can stand in for RSS-like flow hash;
-- cost-aware-jsw target, which is an early Ours prototype.
+- hash-only target，可近似作为 RSS-like flow hash；
+- cost-aware-jsw target，是早期 Ours prototype。
 
-It does not yet implement:
+当前还没有实现：
 
-- JSQ as a first-class policy;
-- Static Pool;
-- Oracle;
-- structured CSV/JSON output;
-- true p50/p99 latency.
+- JSQ 作为一等策略；
+- Static Pool；
+- Oracle；
+- 结构化 CSV/JSON 输出；
+- 真实 p50/p99 latency。
 
-So the paper should not yet claim a complete evaluation until those are added.
+所以在这些补齐之前，论文不宜声称已经完成完整 evaluation。
 
-### 6.3 Recommended baseline definitions
+### 6.3 推荐 baseline 定义
 
 #### RSS / Hash
 
-Policy:
+策略：
 
 ```text
 worker = flow_hash % num_workers
 ```
 
-Purpose:
+作用：
 
-- baseline for hardware RSS-like flow affinity;
-- no load awareness;
-- no cost awareness;
-- no core awareness.
+- 硬件 RSS-like flow affinity baseline；
+- 不感知负载；
+- 不感知成本；
+- 不感知核类型。
 
-Current implementation:
+当前实现：
 
 - `ndpiBenchmarkMark6Hash`
 
-Needed improvement:
+需要改进：
 
-- expose as runtime `--policy rss` instead of compile-only target.
+- 暴露成 runtime `--policy rss`，而不是只通过编译 target 切换。
 
 #### JSQ
 
-Policy:
+策略：
 
 ```text
 worker = argmin(queue_depth)
 ```
 
-For first-flow assignment only. Existing flows keep affinity.
+只在首次 flow assignment 时使用。已有 flow 保持 affinity。
 
-Purpose:
+作用：
 
-- load-aware;
-- not cost-aware;
-- not core-aware.
+- load-aware；
+- 不 cost-aware；
+- 不 core-aware。
 
-Needed implementation:
+需要实现：
 
-- add dispatch policy branch using `queue_depth`;
-- optionally use packets pending or estimated pending bytes.
+- 增加基于 `queue_depth` 的 dispatch policy branch；
+- 可选：使用 pending packets 或 estimated pending bytes。
 
 #### Static Pool
 
-Policy example:
+策略示例：
 
 ```text
 Easy    -> E-core pool
-Middle  -> mixed pool or P/E weighted pool
+Middle  -> mixed pool 或 P/E weighted pool
 Hard    -> P-core pool
-within pool: round-robin or hash
+within pool: round-robin 或 hash
 ```
 
-Purpose:
+作用：
 
-- cost-aware and core-aware;
-- not dynamically load-aware.
+- cost-aware；
+- core-aware；
+- 但不是动态 load-aware。
 
-Needed implementation:
+需要实现：
 
-- bucket-to-core-type mapping;
-- per-pool worker selection.
+- bucket 到 core type 的映射；
+- pool 内 worker 选择。
 
 #### Ours
 
-Current policy:
+当前策略：
 
 ```text
 score = pending_cost(worker) + cost_profile[core_type][bucket] + P_bias
 worker = argmin(score)
 ```
 
-Purpose:
+作用：
 
-- load-aware;
-- cost-aware;
-- core-aware;
-- dynamic.
+- load-aware；
+- cost-aware；
+- core-aware；
+- dynamic。
 
-Current implementation:
+当前实现：
 
 - `mark6/src/dispatch.c:75-113`
 
-Needed improvement:
+需要改进：
 
-- make policy selectable at runtime;
-- tune or justify `P_bias`;
-- report placement by bucket and core type.
+- 让策略在运行时可选；
+- 调整或解释 `P_bias`；
+- 输出 bucket 到 core type 的 placement 统计。
 
 #### Oracle
 
-Policy options:
+策略选项：
 
-1. Trace oracle:
-   - knows true flow protocol or true measured flow cost from profiling;
-   - uses that cost before scheduling.
+1. Trace oracle：
+   - 知道真实 flow protocol 或真实 measured flow cost；
+   - 在调度前使用真实成本。
 
-2. Offline scheduler oracle:
-   - has the entire trace;
-   - can compute near-optimal assignment or use greedy list scheduling.
+2. Offline scheduler oracle：
+   - 看到整条 trace；
+   - 可以做近似最优分配或 greedy list scheduling。
 
-Recommended for paper:
+论文中推荐：
 
-- Use trace oracle as a practical upper bound.
-- Avoid claiming global optimality unless a real offline optimizer is built.
+- 使用 trace oracle 作为 practical upper bound；
+- 除非真的实现 optimizer，否则不要声称 global optimal。
 
-Needed implementation:
+需要实现：
 
-- generate `flow_key -> true_cost` or `signature -> true_cost` table;
-- mark6 loads oracle table and uses true bucket/cost for first-flow assignment.
+- 生成 `flow_key -> true_cost` 或 `signature -> true_cost` 表；
+- mark6 加载 oracle 表，并用真实 bucket/cost 做首次 flow assignment。
 
-### 6.4 Metrics to add
+### 6.4 需要补充的指标
 
-#### Already available
+#### 已经有的指标
 
-- throughput Mpps;
-- bandwidth Gbps;
-- cycles per packet;
-- dispatch flow->worker time;
-- dispatch enqueue time;
-- process parse / flow / nDPI breakdown;
-- per-worker packets/bytes/flows;
-- P/E load summary.
+- throughput Mpps；
+- bandwidth Gbps；
+- cycles per packet；
+- dispatch flow->worker time；
+- dispatch enqueue time；
+- process parse / flow / nDPI breakdown；
+- per-worker packets/bytes/flows；
+- P/E load summary。
 
-#### Needs structure, not necessarily new instrumentation
+#### 需要结构化，但不一定需要新 instrumentation
 
-- CSV/JSON run summary;
-- worker stats CSV;
-- dispatch stats CSV;
-- P/E placement summary;
-- load imbalance metrics:
-  - max/min worker packets;
-  - max/min worker bytes;
-  - coefficient of variation;
-  - Gini coefficient;
-  - max worker processing time / mean worker processing time.
+- CSV/JSON run summary；
+- worker stats CSV；
+- dispatch stats CSV；
+- P/E placement summary；
+- load imbalance metrics：
+  - max/min worker packets；
+  - max/min worker bytes；
+  - coefficient of variation；
+  - Gini coefficient；
+  - max worker processing time / mean worker processing time。
 
-#### Needs new instrumentation
+#### 需要新 instrumentation
 
-- p50/p99 per-packet sojourn latency;
-- p50/p99 queue waiting time;
-- p50/p99 dispatch decision time;
-- sampled per-packet latency histogram.
+- p50/p99 per-packet sojourn latency；
+- p50/p99 queue waiting time；
+- p50/p99 dispatch decision time；
+- sampled per-packet latency histogram。
 
-Because latency instrumentation can disturb throughput, implement a sampling
-mode:
+因为 latency instrumentation 会影响吞吐，建议实现采样模式：
 
 ```text
 --latency-sample-rate 1024
 ```
 
-or fixed-size reservoir sampling.
+或 fixed-size reservoir sampling。
 
-## 7. Current Distance from the Paper Vision
+## 7. 当前距离论文设想还有多远
 
 ### 7.1 Measurement Study readiness
 
-Estimated readiness: high.
+估计成熟度：高。
 
-Already available:
+已有：
 
-- mark5 profiling runs;
-- P/E time and hardware summaries;
-- protocol-level plots;
-- lookup training outputs;
-- first-packet signature summaries.
+- mark5 profiling runs；
+- P/E time 和 hardware summaries；
+- protocol-level plots；
+- lookup training outputs；
+- first-packet signature summaries。
 
-Still needed:
+仍需补充：
 
-- dataset table;
-- cross-trace correlation numbers;
-- speedup ratio CV/IQR;
-- flow-cost CDF;
-- lookup coverage/purity figure;
-- careful wording about trace skew.
+- dataset table；
+- cross-trace correlation numbers；
+- speedup ratio CV/IQR；
+- flow-cost CDF；
+- lookup coverage/purity figure；
+- 关于 trace skew 的谨慎表述。
 
 ### 7.2 Evaluation readiness
 
-Estimated readiness: medium-low.
+估计成熟度：中低。
 
-Already available:
+已有：
 
-- controlled replay platform;
-- hash-only comparison target;
-- cost-aware prototype;
-- dispatch optimization;
-- detailed stdout stats.
+- controlled replay platform；
+- hash-only 对照 target；
+- cost-aware prototype；
+- dispatch optimization；
+- detailed stdout stats。
 
-Still needed:
+仍需补充：
 
-- runtime policy framework;
-- JSQ baseline;
-- Static Pool baseline;
-- Oracle baseline;
-- structured output;
-- batch runner;
-- plotting scripts;
-- repeated runs with error bars;
-- latency or queue waiting metric.
+- runtime policy framework；
+- JSQ baseline；
+- Static Pool baseline；
+- Oracle baseline；
+- structured output；
+- batch runner；
+- plotting scripts；
+- repeated runs with error bars；
+- latency 或 queue waiting metric。
 
 ### 7.3 Design readiness
 
-Estimated readiness: medium.
+估计成熟度：中。
 
-The conceptual design is coherent:
+概念设计是自洽的：
 
 ```text
 Offline profiling -> first-packet cost estimate -> dynamic heterogeneous scheduling
 ```
 
-But the implementation must close the loop:
+但实现上还要闭环：
 
 ```text
 mark5 cost table -> mark6 policies -> structured evaluation -> paper figures
 ```
 
-## 8. Recommended Engineering Roadmap
+## 8. 推荐工程路线
 
-### Phase 1: Make mark6 results paper-plot ready
+### Phase 1：让 mark6 结果可直接画论文图
 
-Goal:
+目标：
 
-Turn stdout into structured experiment output.
+把 stdout 转成结构化实验输出。
 
-Implement:
+实现：
 
-- `--output-dir <dir>`;
-- `run_summary.csv/json`;
-- `worker_stats.csv`;
-- `dispatch_stats.csv`;
-- `core_type_summary.csv`;
-- `policy_config.json`.
+- `--output-dir <dir>`；
+- `run_summary.csv/json`；
+- `worker_stats.csv`；
+- `dispatch_stats.csv`；
+- `core_type_summary.csv`；
+- `policy_config.json`。
 
-Files likely touched:
+可能涉及文件：
 
-- `mark6/src/main.c`;
-- `mark6/include/ndpi_benchmark.h`;
-- maybe new `mark6/src/result_writer.c`.
+- `mark6/src/main.c`；
+- `mark6/include/ndpi_benchmark.h`；
+- 可能新增 `mark6/src/result_writer.c`。
 
-Acceptance:
+验收：
 
-- One run produces stable machine-readable output.
-- Existing stdout remains available.
-- Batch scripts no longer need fragile regex parsing.
+- 一次运行产生稳定的 machine-readable output；
+- 现有 stdout 保留；
+- batch scripts 不再依赖脆弱的正则解析。
 
-### Phase 2: Runtime policy framework
+### Phase 2：运行时 policy framework
 
-Goal:
+目标：
 
-Replace compile-time policy split with:
+把编译期策略切换替换为：
 
 ```text
 --policy rss|jsq|static-pool|ours|oracle
 ```
 
-Implement:
+实现：
 
-- `dispatch_policy_t` enum;
-- policy parser;
-- dispatch context stores policy;
-- dispatch assignment switch.
+- `dispatch_policy_t` enum；
+- policy parser；
+- dispatch context 保存 policy；
+- dispatch assignment switch。
 
-Files likely touched:
+可能涉及文件：
 
-- `mark6/src/main.c`;
-- `mark6/src/dispatch.c`;
-- `mark6/include/benchmark_internal.h`;
-- `mark6/include/ndpi_benchmark.h`.
+- `mark6/src/main.c`；
+- `mark6/src/dispatch.c`；
+- `mark6/include/benchmark_internal.h`；
+- `mark6/include/ndpi_benchmark.h`。
 
-Acceptance:
+验收：
 
-- One binary can run all non-oracle policies.
-- `ndpiBenchmarkMark6Hash` can be retained for compatibility but is no longer
-  required for experiments.
+- 一个 binary 可以运行所有非 oracle 策略；
+- `ndpiBenchmarkMark6Hash` 可以保留兼容，但不再是实验必须项。
 
-### Phase 3: Add missing baselines
+### Phase 3：补齐 baseline
 
-Implement:
+实现：
 
-- RSS/hash;
-- JSQ;
-- Static Pool;
-- Ours;
-- Oracle-lite.
+- RSS/hash；
+- JSQ；
+- Static Pool；
+- Ours；
+- Oracle-lite。
 
-Acceptance:
+验收：
 
-- Same trace and same core list can run all baselines.
-- Output records policy name and parameters.
+- 同一 trace 和同一 core list 可以跑所有 baseline；
+- 输出记录 policy name 和 policy parameters。
 
-### Phase 4: Add latency and overhead metrics
+### Phase 4：增加 latency 与 overhead 指标
 
-Implement:
+实现：
 
-- sampled queue waiting time;
-- sampled dispatch decision time;
-- p50/p99 from histograms;
-- load imbalance metrics.
+- sampled queue waiting time；
+- sampled dispatch decision time；
+- histogram 计算 p50/p99；
+- load imbalance metrics。
 
-Acceptance:
+验收：
 
-- throughput-only mode has low overhead;
-- latency mode is explicitly enabled and documented;
-- p50/p99 are available for Figure 4.
+- throughput-only mode 低开销；
+- latency mode 显式开启并有文档说明；
+- p50/p99 可用于 Figure 4。
 
-### Phase 5: Batch runner and plotter
+### Phase 5：batch runner 和 plotter
 
-Implement:
+实现：
 
-- `mark6/run_mark6_matrix.py`;
-- `mark6/plot_mark6_results.py`.
+- `mark6/run_mark6_matrix.py`；
+- `mark6/plot_mark6_results.py`。
 
-Experiment matrix:
+实验矩阵：
 
 ```text
 policies = rss, jsq, static-pool, ours, oracle
@@ -709,94 +682,98 @@ repeats = 5
 core_sets = P-only, E-only, P+E
 ```
 
-Acceptance:
+验收：
 
-- produces one experiment directory per batch;
-- generates CSV summary and paper-ready plots.
+- 每个 batch 生成一个独立实验目录；
+- 生成 CSV summary 和论文图。
 
-## 9. Suggested Paper Figures After Engineering Completion
+## 9. 工程完成后推荐论文图
 
 ### Measurement figures
 
-1. Protocol detection cost by protocol, P/E side-by-side.
-2. E/P speedup ratio by protocol.
-3. First-packet lookup quality:
-   - coverage;
-   - purity;
-   - bucket confusion.
-4. Optional: flow detection cost CDF.
+1. Protocol detection cost by protocol，P/E side-by-side。
+2. E/P speedup ratio by protocol。
+3. First-packet lookup quality：
+   - coverage；
+   - purity；
+   - bucket confusion。
+4. 可选：flow detection cost CDF。
 
 ### Evaluation figures
 
-1. Overall throughput by policy.
-2. p50/p99 queue or sojourn latency by policy.
-3. Ablation:
-   - RSS;
-   - JSQ;
-   - JSQ + cost;
-   - JSQ + cost + core speed;
-   - Ours + overload guard;
-   - Oracle.
-4. Robustness:
-   - encrypted/unknown ratio;
-   - short-flow vs long-flow mix;
-   - trace-to-trace variation.
-5. Micro-analysis:
-   - P/E byte and flow share;
-   - bucket placement by core type;
-   - dispatch overhead ns/pkt.
+1. Overall throughput by policy。
+2. p50/p99 queue 或 sojourn latency by policy。
+3. Ablation：
+   - RSS；
+   - JSQ；
+   - JSQ + cost；
+   - JSQ + cost + core speed；
+   - Ours + overload guard；
+   - Oracle。
+4. Robustness：
+   - encrypted/unknown ratio；
+   - short-flow vs long-flow mix；
+   - trace-to-trace variation。
+5. Micro-analysis：
+   - P/E byte 和 flow share；
+   - bucket placement by core type；
+   - dispatch overhead ns/pkt。
 
-## 10. Suggested Wording Adjustments for the Paper
+## 10. 论文措辞建议
 
-### 10.1 Be careful with “RSS”
+### 10.1 谨慎使用 “RSS”
 
-Current preprocess is a software simulation of RSS-like partitioning. In the
-paper, write:
+当前 preprocess 是 RSS-like partitioning 的软件模拟。论文中建议写：
 
-> In the offline replay, we pre-partition packets by a canonical flow hash to
-> emulate the flow affinity provided by RSS. In the DPDK implementation, this
-> stage can be mapped to hardware RX queues when symmetric RSS is available.
+> In the offline replay, we pre-partition packets by a canonical flow hash to emulate the flow affinity provided by RSS. In the DPDK implementation, this stage can be mapped to hardware RX queues when symmetric RSS is available.
 
-### 10.2 Be careful with throughput
+中文理解：
 
-Write:
+> 在离线 replay 中，我们用 canonical flow hash 预先划分包，以模拟 RSS 提供的 flow affinity。在 DPDK 实现中，当 symmetric RSS 可用时，这一阶段可以映射到硬件 RX queues。
 
-> Unless otherwise stated, replay throughput excludes the offline pcap preload
-> stage and measures the dispatch-and-worker interval.
+### 10.2 谨慎说明吞吐
 
-If reporting end-to-end pcap throughput, label it separately.
+建议写：
 
-### 10.3 Be careful with “Oracle”
+> Unless otherwise stated, replay throughput excludes the offline pcap preload stage and measures the dispatch-and-worker interval.
 
-Unless implementing a true optimizer, call it:
+中文理解：
+
+> 除非特别说明，replay throughput 不包含 offline pcap preload 阶段，只测量 dispatch-and-worker interval。
+
+如果报告端到端 pcap throughput，需要单独标注。
+
+### 10.3 谨慎使用 “Oracle”
+
+除非实现真正 optimizer，否则叫：
 
 ```text
 Trace-informed oracle
 ```
 
-or:
+或：
 
 ```text
 Oracle cost estimator
 ```
 
-not “optimal scheduler.”
+不要叫 “optimal scheduler”。
 
-### 10.4 Be careful with P/E speedup constancy
+### 10.4 谨慎描述 P/E speedup constancy
 
-Use:
+使用：
 
 > approximately stable
 
-rather than:
+而不是：
 
 > constant
 
-Then report median, IQR, and CV.
+然后报告 median、IQR、CV。
 
-## 11. Final Assessment
+## 11. 最终评估
 
-The paper direction is sound:
+论文方向是成立的：
 
 ```text
 Measurement shows protocol and core heterogeneity.
@@ -804,19 +781,17 @@ First-packet features provide a usable cost prior.
 Dynamic dispatch can use that prior to place flows on heterogeneous cores.
 ```
 
-Current implementation status:
+当前实现状态：
 
-- `mark5`: close to paper-ready for Measurement Study;
-- `mark6`: good prototype, but not yet paper-ready for full Evaluation.
+- `mark5`：接近可以支撑 Measurement Study；
+- `mark6`：是很好的 prototype，但还不能直接支撑完整 Evaluation。
 
-Minimum engineering needed before strong evaluation claims:
+在提出强 evaluation claim 之前，至少需要补齐：
 
-1. structured mark6 output;
-2. runtime baseline policies;
-3. repeated batch runs;
-4. load-balance metrics;
-5. latency or queue-waiting metric if the paper claims latency benefit.
+1. mark6 结构化输出；
+2. runtime baseline policies；
+3. repeated batch runs；
+4. load-balance metrics；
+5. 如果论文声称 latency benefit，需要 latency 或 queue-waiting metric。
 
-With those completed, the current outline can support a credible systems paper
-story. Without them, §IV should be framed conservatively as a prototype
-feasibility study rather than a complete scheduler evaluation.
+完成这些之后，当前大纲可以支撑一个可信的 systems paper story。否则，§IV 应更保守地写成 prototype feasibility study，而不是 complete scheduler evaluation。
