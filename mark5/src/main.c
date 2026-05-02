@@ -883,6 +883,7 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
   const char *proto_name = proto_name_from_flow(ctx->ndpi, flow, proto_buf, sizeof(proto_buf));
   const char *cat_name = flow->protocol_counted ? category_name(ctx->ndpi, flow->detected_category) : "NOT_DETECTED";
   uint64_t flow_bytes = flow->c2s_bytes + flow->s2c_bytes;
+  uint64_t flow_hash = flow_key_hash(&flow->key);
 
 #if defined(MARK5_PROFILE_TIME)
   uint64_t detecting_other_ns = flow->detecting_time_ns_total -
@@ -892,8 +893,9 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
                            flow->post_detection_time_ns_total -
                            flow->post_flow_table_time_ns_total;
   fprintf(ctx->fp,
-          "%lu,%u,%u,%u,%u,%s,%u,%u,%s,%u,%u,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%lu,%lu,%lu",
+          "%lu,%lu,%u,%u,%u,%u,%s,%u,%u,%s,%u,%u,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%lu,%lu,%lu",
           (unsigned long)ctx->index,
+          (unsigned long)flow_hash,
           (unsigned)flow->protocol_counted,
           (unsigned)flow->signature_ip_version,
           (unsigned)flow->signature_l4_proto,
@@ -931,8 +933,9 @@ static void write_flow_csv_cb(bench_flow_t *flow, void *user) {
   uint64_t total_llc_refs = flow->detecting_llc_refs_total + flow->post_llc_refs_total;
   uint64_t total_branch_misses = flow->detecting_branch_misses_total + flow->post_branch_misses_total;
   fprintf(ctx->fp,
-          "%lu,%u,%u,%u,%u,%s,%u,%u,%s,%u,%u,%s",
+          "%lu,%lu,%u,%u,%u,%u,%s,%u,%u,%s,%u,%u,%s",
           (unsigned long)ctx->index,
+          (unsigned long)flow_hash,
           (unsigned)flow->protocol_counted,
           (unsigned)flow->signature_ip_version,
           (unsigned)flow->signature_l4_proto,
@@ -980,10 +983,10 @@ static bool write_flow_csv(const char *csv_path,
   if (!fp) return false;
 
 #if defined(MARK5_PROFILE_TIME)
-  fprintf(fp, "flow_id,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_total_ms,detecting_detection_only_ms,detecting_flow_table_ms,detecting_other_ms,detecting_detection_ratio,detecting_flow_table_ratio,detecting_other_ratio,post_total_ms,post_detection_only_ms,post_flow_table_ms,post_other_ms,post_detection_ratio,post_flow_table_ratio,post_other_ratio,detecting_bytes,packets_in_flow,bytes_in_flow");
+  fprintf(fp, "flow_id,flow_hash,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_total_ms,detecting_detection_only_ms,detecting_flow_table_ms,detecting_other_ms,detecting_detection_ratio,detecting_flow_table_ratio,detecting_other_ratio,post_total_ms,post_detection_only_ms,post_flow_table_ms,post_other_ms,post_detection_ratio,post_flow_table_ratio,post_other_ratio,detecting_bytes,packets_in_flow,bytes_in_flow");
 #endif
 #if defined(MARK5_PROFILE_HW)
-  fprintf(fp, "flow_id,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_instructions,detecting_cycles,detecting_ipc,detecting_llc_misses,detecting_llc_refs,detecting_llc_miss_ratio,detecting_branch_misses,detecting_branch_miss_per_kinst,post_instructions,post_cycles,post_ipc,post_llc_misses,post_llc_refs,post_llc_miss_ratio,post_branch_misses,post_branch_miss_per_kinst,detecting_bytes,packets_in_flow,bytes_in_flow,total_llc_misses,total_llc_refs,total_branch_misses,total_ipc");
+  fprintf(fp, "flow_id,flow_hash,protocol_detected,ip_version,l4_proto,server_port,prefix_4,master_proto,app_proto,category_name,category_id,detect_pkt_in_flow,protocol,detecting_instructions,detecting_cycles,detecting_ipc,detecting_llc_misses,detecting_llc_refs,detecting_llc_miss_ratio,detecting_branch_misses,detecting_branch_miss_per_kinst,post_instructions,post_cycles,post_ipc,post_llc_misses,post_llc_refs,post_llc_miss_ratio,post_branch_misses,post_branch_miss_per_kinst,detecting_bytes,packets_in_flow,bytes_in_flow,total_llc_misses,total_llc_refs,total_branch_misses,total_ipc");
 #endif
   write_packet_columns_header(fp);
 
