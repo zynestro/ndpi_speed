@@ -530,6 +530,7 @@ typedef struct {
   const char *lookup_file;
   const char *cost_profile_file;
   const char *oracle_file;
+  const char *output_dir;
   dispatch_policy_t policy;
 } benchmark_config_t;
 

@@ -33,6 +33,201 @@ static uint64_t percentile_sorted_u64(const uint64_t *values, size_t count, doub
   return values[idx];
 }
 
+typedef struct {
+  uint64_t packets;
+  uint64_t bytes;
+  uint64_t flows;
+  uint64_t detected_flows;
+  uint64_t process_ns_max;
+  size_t latency_samples;
+  uint64_t latency_p50_ns;
+  uint64_t latency_p99_ns;
+} mark7_aggregate_t;
+
+static mark7_aggregate_t aggregate_workers(worker_context_t *workers,
+                                           uint32_t num_workers) {
+  mark7_aggregate_t out;
+  memset(&out, 0, sizeof(out));
+
+  for (uint32_t i = 0; i < num_workers; i++) {
+    out.packets += workers[i].packets_processed;
+    out.bytes += workers[i].bytes_processed;
+    out.flows += workers[i].flows_created_total;
+    out.detected_flows += workers[i].flows_with_protocol_total;
+    if (workers[i].processing_time_ns > out.process_ns_max) {
+      out.process_ns_max = workers[i].processing_time_ns;
+    }
+    out.latency_samples += workers[i].flow_detect_latency_count;
+  }
+
+  if (out.latency_samples > 0) {
+    uint64_t *latencies = (uint64_t *)malloc(out.latency_samples * sizeof(uint64_t));
+    if (latencies) {
+      size_t pos = 0;
+      for (uint32_t i = 0; i < num_workers; i++) {
+        if (workers[i].flow_detect_latency_count > 0) {
+          memcpy(&latencies[pos],
+                 workers[i].flow_detect_latency_ns,
+                 workers[i].flow_detect_latency_count * sizeof(uint64_t));
+          pos += workers[i].flow_detect_latency_count;
+        }
+      }
+      qsort(latencies, out.latency_samples, sizeof(uint64_t), cmp_u64);
+      out.latency_p50_ns = percentile_sorted_u64(latencies, out.latency_samples, 0.50);
+      out.latency_p99_ns = percentile_sorted_u64(latencies, out.latency_samples, 0.99);
+      free(latencies);
+    }
+  }
+
+  return out;
+}
+
+static bool ensure_output_dir(const char *path) {
+  if (!path || !path[0]) return false;
+  char tmp[4096];
+  snprintf(tmp, sizeof(tmp), "%s", path);
+  size_t len = strlen(tmp);
+  if (len == 0) return false;
+  if (tmp[len - 1] == '/') tmp[len - 1] = '\0';
+  for (char *p = tmp + 1; *p; p++) {
+    if (*p != '/') continue;
+    *p = '\0';
+    if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+      fprintf(stderr, "Error: failed to create output dir %s: %s\n", tmp, strerror(errno));
+      return false;
+    }
+    *p = '/';
+  }
+  if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+    fprintf(stderr, "Error: failed to create output dir %s: %s\n", tmp, strerror(errno));
+    return false;
+  }
+  return true;
+}
+
+static void write_structured_results(const benchmark_config_t *cfg,
+                                     worker_context_t *workers,
+                                     uint32_t num_workers,
+                                     const dispatch_context_t *dispatch,
+                                     double elapsed_sec,
+                                     uint64_t total_cycles,
+                                     const reader_context_t *reader) {
+  if (!cfg || !cfg->output_dir || !cfg->output_dir[0]) return;
+  if (!ensure_output_dir(cfg->output_dir)) return;
+
+  mark7_aggregate_t agg = aggregate_workers(workers, num_workers);
+  double preprocess_sec = (double)reader->preprocess_ns / 1000000000.0;
+  double replay_sec = elapsed_sec - preprocess_sec;
+  if (replay_sec <= 0.0) replay_sec = elapsed_sec;
+  double throughput_pps = replay_sec > 0.0 ? (double)agg.packets / replay_sec : 0.0;
+  double flow_throughput_fps = replay_sec > 0.0 ? (double)agg.flows / replay_sec : 0.0;
+  double gbps = replay_sec > 0.0 ? (double)agg.bytes * 8.0 / replay_sec / 1e9 : 0.0;
+
+  char path[4096];
+  snprintf(path, sizeof(path), "%s/run_summary.csv", cfg->output_dir);
+  FILE *fp = fopen(path, "w");
+  if (fp) {
+    fprintf(fp, "policy,pcap,num_workers,num_dispatchers,total_elapsed_sec,replay_sec,total_packets,total_flows,detected_flows,throughput_pps,flow_throughput_fps,bandwidth_gbps,cycles_per_packet,latency_samples,detect_latency_p50_ms,detect_latency_p99_ms,dispatch_total_ns,dispatch_map_ns,dispatch_enqueue_ns\n");
+    fprintf(fp, "%s,%s,%u,%u,%.9f,%.9f,%lu,%lu,%lu,%.6f,%.6f,%.6f,%.6f,%zu,%.6f,%.6f,%lu,%lu,%lu\n",
+            dispatch_policy_name(cfg->policy),
+            cfg->pcap_file,
+            cfg->num_workers,
+            cfg->num_dispatchers,
+            elapsed_sec,
+            replay_sec,
+            (unsigned long)agg.packets,
+            (unsigned long)agg.flows,
+            (unsigned long)agg.detected_flows,
+            throughput_pps,
+            flow_throughput_fps,
+            gbps,
+            agg.packets ? (double)total_cycles / (double)agg.packets : 0.0,
+            agg.latency_samples,
+            (double)agg.latency_p50_ns / 1000000.0,
+            (double)agg.latency_p99_ns / 1000000.0,
+            (unsigned long)reader->read_time_ns,
+            (unsigned long)reader->rss_lookup_ns,
+            (unsigned long)reader->enqueue_ns);
+    fclose(fp);
+  }
+
+  snprintf(path, sizeof(path), "%s/latency_summary.csv", cfg->output_dir);
+  fp = fopen(path, "w");
+  if (fp) {
+    fprintf(fp, "policy,samples,p50_ms,p99_ms\n");
+    fprintf(fp, "%s,%zu,%.6f,%.6f\n",
+            dispatch_policy_name(cfg->policy),
+            agg.latency_samples,
+            (double)agg.latency_p50_ns / 1000000.0,
+            (double)agg.latency_p99_ns / 1000000.0);
+    fclose(fp);
+  }
+
+  snprintf(path, sizeof(path), "%s/worker_stats.csv", cfg->output_dir);
+  fp = fopen(path, "w");
+  if (fp) {
+    fprintf(fp, "policy,worker_id,core_id,core_type,packets,bytes,flows,detected_flows,processing_time_ns,busy_ratio,latency_samples,max_queue_depth,added_cost_x1000,retired_cost_x1000\n");
+    for (uint32_t i = 0; i < num_workers; i++) {
+      worker_runtime_state_t *state = workers[i].runtime;
+      uint64_t added = atomic_load_explicit(&state->added_cost_x1000, memory_order_relaxed);
+      uint64_t retired = atomic_load_explicit(&state->retired_cost_x1000, memory_order_relaxed);
+      uint32_t maxq = atomic_load_explicit(&state->max_queue_depth, memory_order_relaxed);
+      fprintf(fp, "%s,%u,%u,%s,%lu,%lu,%lu,%lu,%lu,%.9f,%zu,%u,%lu,%lu\n",
+              dispatch_policy_name(cfg->policy),
+              i,
+              workers[i].cpu_core,
+              state->core_type == CORE_TYPE_P ? "P" : "E",
+              (unsigned long)workers[i].packets_processed,
+              (unsigned long)workers[i].bytes_processed,
+              (unsigned long)workers[i].flows_created_total,
+              (unsigned long)workers[i].flows_with_protocol_total,
+              (unsigned long)workers[i].processing_time_ns,
+              replay_sec > 0.0 ? ((double)workers[i].processing_time_ns / 1e9) / replay_sec : 0.0,
+              workers[i].flow_detect_latency_count,
+              maxq,
+              (unsigned long)added,
+              (unsigned long)retired);
+    }
+    fclose(fp);
+  }
+
+  const dispatch_stats_t *stats = dispatch_get_stats(dispatch);
+  snprintf(path, sizeof(path), "%s/dispatch_stats.csv", cfg->output_dir);
+  fp = fopen(path, "w");
+  if (fp && stats) {
+    fprintf(fp, "policy,lookups,new_flow_assignments,existing_flow_hits,fallback_packets,oracle_hits,oracle_misses,easy_flows,middle_flows,hard_flows\n");
+    fprintf(fp, "%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu\n",
+            dispatch_policy_name(cfg->policy),
+            (unsigned long)stats->lookups,
+            (unsigned long)stats->new_flow_assignments,
+            (unsigned long)stats->existing_flow_hits,
+            (unsigned long)stats->fallback_packets,
+            (unsigned long)stats->oracle_hits,
+            (unsigned long)stats->oracle_misses,
+            (unsigned long)stats->bucket_flow_counts[COST_BUCKET_EASY],
+            (unsigned long)stats->bucket_flow_counts[COST_BUCKET_MIDDLE],
+            (unsigned long)stats->bucket_flow_counts[COST_BUCKET_HARD]);
+    fclose(fp);
+  } else if (fp) {
+    fclose(fp);
+  }
+
+  snprintf(path, sizeof(path), "%s/policy_config.json", cfg->output_dir);
+  fp = fopen(path, "w");
+  if (fp) {
+    fprintf(fp, "{\n");
+    fprintf(fp, "  \"policy\": \"%s\",\n", dispatch_policy_name(cfg->policy));
+    fprintf(fp, "  \"pcap\": \"%s\",\n", cfg->pcap_file);
+    fprintf(fp, "  \"lookup_file\": \"%s\",\n", cfg->lookup_file);
+    fprintf(fp, "  \"cost_profile_file\": \"%s\",\n", cfg->cost_profile_file);
+    fprintf(fp, "  \"oracle_file\": \"%s\",\n", cfg->oracle_file ? cfg->oracle_file : "");
+    fprintf(fp, "  \"num_workers\": %u,\n", cfg->num_workers);
+    fprintf(fp, "  \"num_dispatchers\": %u\n", cfg->num_dispatchers);
+    fprintf(fp, "}\n");
+    fclose(fp);
+  }
+}
+
 void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
                              uint64_t total_cycles, double elapsed_sec,
                              uint64_t preprocess_ns,
@@ -337,6 +532,7 @@ static void usage(void) {
          DEFAULT_COST_PROFILE_FILE);
   printf("  -P <policy>        Dispatch policy: rss|jsq|static|ours|oracle (default: ours)\n");
   printf("  -O <file>          Oracle flow cost CSV: flow_hash,cost_us\n");
+  printf("  -o <dir>           Write structured CSV/JSON results to directory\n");
   printf("  -p <file>          Protocol configuration file\n");
   printf("  -q                 Quiet mode\n");
   printf("  -h                 Show this help\n\n");
@@ -478,7 +674,7 @@ static benchmark_config_t parse_args(int argc, char **argv) {
   char *dispatcher_core_list_str = NULL;
 
   int opt;
-  while ((opt = getopt(argc, argv, "i:n:c:d:m:C:P:O:p:qh")) != -1) {
+  while ((opt = getopt(argc, argv, "i:n:c:d:m:C:P:O:o:p:qh")) != -1) {
     switch (opt) {
       case 'i':
         cfg.pcap_file = optarg;
@@ -510,6 +706,9 @@ static benchmark_config_t parse_args(int argc, char **argv) {
         break;
       case 'O':
         cfg.oracle_file = optarg;
+        break;
+      case 'o':
+        cfg.output_dir = optarg;
         break;
       case 'p':
         cfg.proto_file = optarg;
@@ -822,6 +1021,8 @@ int main(int argc, char **argv) {
                           reader_ctx.enqueue_ns,
                           reader_ctx.read_other_ns);
   print_dispatch_summary(dispatch_ctx, workers, cfg.num_workers);
+  write_structured_results(&cfg, workers, cfg.num_workers, dispatch_ctx, elapsed,
+                           cycles_end - cycles_start, &reader_ctx);
 
   /* 按“创建反序”释放资源，避免悬空引用。 */
   dispatch_context_destroy(dispatch_ctx);
