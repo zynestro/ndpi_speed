@@ -133,7 +133,7 @@ def plot_fig7(workload_path: Path, cv_path: Path, out_dir: Path) -> None:
     for label, group in df.groupby("policy_label"):
         labels.append(f"{label}\nCV={cvs.get(label, 0.0):.2f}")
         values.append(group["workload_ns"].to_numpy(dtype=float))
-    ax.boxplot(values, labels=labels, patch_artist=True)
+    ax.boxplot(values, tick_labels=labels, patch_artist=True)
     ax.set_ylabel("Per-core workload (processing ns)")
     ax.set_title("Figure 7: Per-core workload balance")
     save(fig, out_dir / "figure7_workload")

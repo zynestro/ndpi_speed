@@ -34,6 +34,7 @@ __pycache__/
 
 # Benchmark/runtime outputs
 output/
+evaluation/
 mark1/benchmark_results/
 
 # Local data dumps
