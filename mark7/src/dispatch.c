@@ -30,6 +30,8 @@ struct dispatch_context {
 
   const cost_table_t *cost_table;
   const cost_profile_t *cost_profile;
+  const oracle_cost_table_t *oracle_table;
+  dispatch_policy_t policy;
   worker_context_t *workers;
   uint32_t num_workers;
 
@@ -53,7 +55,48 @@ uint16_t core_speed_factor_x1000(uint32_t core_id) {
              : SPEED_FACTOR_E_X1000;
 }
 
-#ifndef MARK7_DISPATCH_HASH_ONLY
+const char *dispatch_policy_name(dispatch_policy_t policy) {
+  switch (policy) {
+    case DISPATCH_POLICY_RSS:
+      return "rss";
+    case DISPATCH_POLICY_JSQ:
+      return "jsq";
+    case DISPATCH_POLICY_STATIC_POOL:
+      return "static-pool";
+    case DISPATCH_POLICY_ORACLE:
+      return "oracle";
+    case DISPATCH_POLICY_OURS:
+    default:
+      return "ours";
+  }
+}
+
+bool dispatch_policy_parse(const char *name, dispatch_policy_t *out) {
+  if (!name || !out) return false;
+  if (strcmp(name, "rss") == 0 || strcmp(name, "hash") == 0) {
+    *out = DISPATCH_POLICY_RSS;
+    return true;
+  }
+  if (strcmp(name, "jsq") == 0) {
+    *out = DISPATCH_POLICY_JSQ;
+    return true;
+  }
+  if (strcmp(name, "static") == 0 || strcmp(name, "static-pool") == 0 ||
+      strcmp(name, "static_pool") == 0) {
+    *out = DISPATCH_POLICY_STATIC_POOL;
+    return true;
+  }
+  if (strcmp(name, "ours") == 0 || strcmp(name, "cost-aware-jsw") == 0) {
+    *out = DISPATCH_POLICY_OURS;
+    return true;
+  }
+  if (strcmp(name, "oracle") == 0) {
+    *out = DISPATCH_POLICY_ORACLE;
+    return true;
+  }
+  return false;
+}
+
 static uint32_t choose_min_queue_worker(const dispatch_context_t *ctx,
                                         const dispatch_shard_t *shard) {
   uint32_t best_worker = 0;
@@ -69,6 +112,53 @@ static uint32_t choose_min_queue_worker(const dispatch_context_t *ctx,
     }
   }
 
+  return best_worker;
+}
+
+static uint32_t choose_static_pool_worker(const dispatch_context_t *ctx,
+                                          uint64_t key_hash,
+                                          uint8_t bucket) {
+  uint8_t want_type = (bucket == COST_BUCKET_EASY) ? CORE_TYPE_E : CORE_TYPE_P;
+  uint32_t candidates[MAX_WORKERS];
+  uint32_t count = 0;
+
+  for (uint32_t i = 0; i < ctx->num_workers; i++) {
+    if (ctx->workers[i].runtime->core_type == want_type) candidates[count++] = i;
+  }
+  if (count == 0) {
+    for (uint32_t i = 0; i < ctx->num_workers; i++) candidates[count++] = i;
+  }
+
+  return candidates[key_hash % count];
+}
+
+static uint32_t choose_cost_value_worker(const dispatch_context_t *ctx,
+                                         const dispatch_shard_t *shard,
+                                         uint32_t cost_x1000,
+                                         uint32_t *out_retire_cost_x1000) {
+  uint32_t best_worker = UINT32_MAX;
+  uint64_t best_score = UINT64_MAX;
+
+  for (uint32_t offset = 0; offset < ctx->num_workers; offset++) {
+    uint32_t i = (shard->rr_cursor + offset) % ctx->num_workers;
+    const worker_runtime_state_t *state = ctx->workers[i].runtime;
+    uint32_t depth = atomic_load_explicit(&state->queue_depth, memory_order_relaxed);
+    if (depth > DISPATCH_QUEUE_GUARD) continue;
+
+    uint64_t added = atomic_load_explicit(&state->added_cost_x1000, memory_order_relaxed);
+    uint64_t retired = atomic_load_explicit(&state->retired_cost_x1000, memory_order_relaxed);
+    uint64_t pending = (added >= retired) ? (added - retired) : 0;
+
+    uint64_t score = pending + cost_x1000;
+    if (state->core_type == CORE_TYPE_P) score += DISPATCH_P_BIAS_X1000;
+    if (score < best_score) {
+      best_score = score;
+      best_worker = i;
+    }
+  }
+
+  if (best_worker == UINT32_MAX) best_worker = choose_min_queue_worker(ctx, shard);
+  *out_retire_cost_x1000 = cost_x1000;
   return best_worker;
 }
 
@@ -111,7 +201,46 @@ static uint32_t choose_cost_jsw_worker(const dispatch_context_t *ctx,
 
   return best_worker;
 }
-#endif
+
+static uint32_t choose_policy_worker(dispatch_context_t *ctx,
+                                     dispatch_shard_t *shard,
+                                     uint64_t key_hash,
+                                     uint8_t bucket,
+                                     uint32_t *out_retire_cost_x1000) {
+  *out_retire_cost_x1000 = 0;
+
+  switch (ctx->policy) {
+    case DISPATCH_POLICY_RSS:
+      return (uint32_t)(key_hash % ctx->num_workers);
+    case DISPATCH_POLICY_JSQ: {
+      uint32_t worker = choose_min_queue_worker(ctx, shard);
+      const worker_runtime_state_t *state = ctx->workers[worker].runtime;
+      *out_retire_cost_x1000 =
+          cost_profile_value_x1000(ctx->cost_profile, state->core_type, bucket);
+      return worker;
+    }
+    case DISPATCH_POLICY_STATIC_POOL: {
+      uint32_t worker = choose_static_pool_worker(ctx, key_hash, bucket);
+      const worker_runtime_state_t *state = ctx->workers[worker].runtime;
+      *out_retire_cost_x1000 =
+          cost_profile_value_x1000(ctx->cost_profile, state->core_type, bucket);
+      return worker;
+    }
+    case DISPATCH_POLICY_ORACLE: {
+      uint32_t oracle_cost_x1000 = 0;
+      if (oracle_cost_table_lookup(ctx->oracle_table, key_hash, &oracle_cost_x1000)) {
+        shard->stats.oracle_hits++;
+        return choose_cost_value_worker(ctx, shard, oracle_cost_x1000,
+                                        out_retire_cost_x1000);
+      }
+      shard->stats.oracle_misses++;
+      return choose_cost_jsw_worker(ctx, shard, bucket, out_retire_cost_x1000);
+    }
+    case DISPATCH_POLICY_OURS:
+    default:
+      return choose_cost_jsw_worker(ctx, shard, bucket, out_retire_cost_x1000);
+  }
+}
 
 static void dispatch_rehash(dispatch_shard_t *shard, size_t new_cap) {
   new_cap = next_pow2(new_cap);
@@ -161,6 +290,8 @@ static void dispatch_shard_destroy(dispatch_shard_t *shard) {
 
 dispatch_context_t *dispatch_context_create(const cost_table_t *table,
                                             const cost_profile_t *profile,
+                                            const oracle_cost_table_t *oracle_table,
+                                            dispatch_policy_t policy,
                                             worker_context_t *workers,
                                             uint32_t num_workers,
                                             uint32_t num_shards) {
@@ -191,6 +322,8 @@ dispatch_context_t *dispatch_context_create(const cost_table_t *table,
 
   ctx->cost_table = table;
   ctx->cost_profile = profile;
+  ctx->oracle_table = oracle_table;
+  ctx->policy = policy;
   ctx->workers = workers;
   ctx->num_workers = num_workers;
   return ctx;
@@ -248,11 +381,8 @@ dispatch_result_t dispatch_lookup_or_assign(dispatch_context_t *ctx,
       uint32_t retire_cost_x1000 = 0;
       uint32_t worker_id = 0;
 
-#ifdef MARK7_DISPATCH_HASH_ONLY
-      worker_id = (uint32_t)(key_hash % ctx->num_workers);
-#else
-      worker_id = choose_cost_jsw_worker(ctx, shard, bucket, &retire_cost_x1000);
-#endif
+      worker_id = choose_policy_worker(ctx, shard, key_hash, bucket,
+                                       &retire_cost_x1000);
 
       dst->state = DISPATCH_USED;
       dst->hash = key_hash;
@@ -268,9 +398,7 @@ dispatch_result_t dispatch_lookup_or_assign(dispatch_context_t *ctx,
       shard->stats.new_flow_assignments++;
       shard->stats.bucket_flow_counts[bucket]++;
       shard->stats.worker_flow_counts[worker_id]++;
-#ifndef MARK7_DISPATCH_HASH_ONLY
       shard->rr_cursor = (worker_id + 1U) % ctx->num_workers;
-#endif
 
       result.worker_id = worker_id;
       result.retire_cost_x1000 = retire_cost_x1000;
@@ -306,6 +434,8 @@ const dispatch_stats_t *dispatch_get_stats(const dispatch_context_t *ctx) {
     mutable_ctx->stats_cache.new_flow_assignments += s->new_flow_assignments;
     mutable_ctx->stats_cache.existing_flow_hits += s->existing_flow_hits;
     mutable_ctx->stats_cache.fallback_packets += s->fallback_packets;
+    mutable_ctx->stats_cache.oracle_hits += s->oracle_hits;
+    mutable_ctx->stats_cache.oracle_misses += s->oracle_misses;
     for (uint32_t b = 0; b < COST_BUCKET_COUNT; b++) {
       mutable_ctx->stats_cache.bucket_flow_counts[b] += s->bucket_flow_counts[b];
     }

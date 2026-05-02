@@ -35,6 +35,8 @@ struct rss_table;
 typedef struct rss_table rss_table_t;
 struct dispatch_context;
 typedef struct dispatch_context dispatch_context_t;
+struct oracle_cost_table;
+typedef struct oracle_cost_table oracle_cost_table_t;
 
 typedef struct {
   /* 输入与线程拓扑配置 */
@@ -151,8 +153,18 @@ uint32_t cost_profile_value_x1000(const cost_profile_t *profile,
                                   uint8_t core_type,
                                   uint8_t bucket);
 
+oracle_cost_table_t *oracle_cost_table_load(const char *path);
+void oracle_cost_table_destroy(oracle_cost_table_t *table);
+bool oracle_cost_table_lookup(const oracle_cost_table_t *table,
+                              uint64_t flow_hash,
+                              uint32_t *out_cost_x1000);
+const char *dispatch_policy_name(dispatch_policy_t policy);
+bool dispatch_policy_parse(const char *name, dispatch_policy_t *out);
+
 dispatch_context_t *dispatch_context_create(const cost_table_t *table,
                                             const cost_profile_t *profile,
+                                            const oracle_cost_table_t *oracle_table,
+                                            dispatch_policy_t policy,
                                             worker_context_t *workers,
                                             uint32_t num_workers,
                                             uint32_t num_shards);

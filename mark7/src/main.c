@@ -18,12 +18,6 @@
 #define DEFAULT_E_WORKER_CORES 8
 #define DEFAULT_DISPATCHER_CORE_BASE 16
 
-#ifdef MARK7_DISPATCH_HASH_ONLY
-#define MARK7_POLICY_NAME "hash-only"
-#else
-#define MARK7_POLICY_NAME "cost-aware-jsw"
-#endif
-
 void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
                              uint64_t total_cycles, double elapsed_sec,
                              uint64_t preprocess_ns,
@@ -299,6 +293,8 @@ static void usage(void) {
   printf("  -m <file>          Lookup table JSON (default: %s)\n", DEFAULT_LOOKUP_FILE);
   printf("  -C <file>          Offline P/E bucket cost CSV (default: %s)\n",
          DEFAULT_COST_PROFILE_FILE);
+  printf("  -P <policy>        Dispatch policy: rss|jsq|static|ours|oracle (default: ours)\n");
+  printf("  -O <file>          Oracle flow cost CSV: flow_hash,cost_us\n");
   printf("  -p <file>          Protocol configuration file\n");
   printf("  -q                 Quiet mode\n");
   printf("  -h                 Show this help\n\n");
@@ -402,6 +398,9 @@ static void print_dispatch_summary(const dispatch_context_t *dispatch,
          (unsigned long)stats->bucket_flow_counts[COST_BUCKET_EASY],
          (unsigned long)stats->bucket_flow_counts[COST_BUCKET_MIDDLE],
          (unsigned long)stats->bucket_flow_counts[COST_BUCKET_HARD]);
+  printf("  Oracle: hits=%lu misses=%lu\n",
+         (unsigned long)stats->oracle_hits,
+         (unsigned long)stats->oracle_misses);
 
   printf("  Per-worker dispatch view:\n");
   for (uint32_t i = 0; i < num_workers; i++) {
@@ -430,12 +429,13 @@ static benchmark_config_t parse_args(int argc, char **argv) {
   cfg.num_dispatchers = DEFAULT_DISPATCHERS;
   cfg.lookup_file = DEFAULT_LOOKUP_FILE;
   cfg.cost_profile_file = DEFAULT_COST_PROFILE_FILE;
+  cfg.policy = DISPATCH_POLICY_OURS;
 
   char *worker_core_list_str = NULL;
   char *dispatcher_core_list_str = NULL;
 
   int opt;
-  while ((opt = getopt(argc, argv, "i:n:c:d:m:C:p:qh")) != -1) {
+  while ((opt = getopt(argc, argv, "i:n:c:d:m:C:P:O:p:qh")) != -1) {
     switch (opt) {
       case 'i':
         cfg.pcap_file = optarg;
@@ -459,6 +459,15 @@ static benchmark_config_t parse_args(int argc, char **argv) {
       case 'C':
         cfg.cost_profile_file = optarg;
         break;
+      case 'P':
+        if (!dispatch_policy_parse(optarg, &cfg.policy)) {
+          fprintf(stderr, "Error: invalid policy '%s'\n", optarg);
+          exit(1);
+        }
+        break;
+      case 'O':
+        cfg.oracle_file = optarg;
+        break;
       case 'p':
         cfg.proto_file = optarg;
         break;
@@ -477,6 +486,11 @@ static benchmark_config_t parse_args(int argc, char **argv) {
   if (!cfg.pcap_file) {
     fprintf(stderr, "Error: PCAP file required (-i)\n\n");
     usage();
+    exit(1);
+  }
+
+  if (cfg.policy == DISPATCH_POLICY_ORACLE && !cfg.oracle_file) {
+    fprintf(stderr, "Error: oracle policy requires -O <oracle_flow_cost.csv>\n");
     exit(1);
   }
 
@@ -528,7 +542,7 @@ int main(int argc, char **argv) {
   printf("========================================\n");
   printf("Standalone nDPI Benchmark Tool (mark7)\n");
   printf("========================================\n\n");
-  printf("Policy: %s\n\n", MARK7_POLICY_NAME);
+  printf("Policy: %s\n\n", dispatch_policy_name(cfg.policy));
 
   /* 1) 初始化 nDPI 全局上下文（供所有 worker 共享只读元数据）。 */
   printf("[1/4] Initializing nDPI...\n");
@@ -555,11 +569,24 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  oracle_cost_table_t *oracle_table = NULL;
+  if (cfg.policy == DISPATCH_POLICY_ORACLE) {
+    oracle_table = oracle_cost_table_load(cfg.oracle_file);
+    if (!oracle_table) {
+      cost_table_destroy(&cost_table);
+      ndpi_global_deinit(g_ctx);
+      free(cfg.core_list);
+      free(cfg.dispatcher_core_list);
+      return 1;
+    }
+  }
+
   worker_runtime_state_t *worker_states =
       alloc_worker_runtime_states(cfg.core_list, cfg.num_workers);
   if (!worker_states) {
     fprintf(stderr, "Error: failed to allocate worker runtime states\n");
     cost_table_destroy(&cost_table);
+    oracle_cost_table_destroy(oracle_table);
     ndpi_global_deinit(g_ctx);
     free(cfg.core_list);
     free(cfg.dispatcher_core_list);
@@ -574,6 +601,9 @@ int main(int argc, char **argv) {
   worker_context_t *workers = (worker_context_t *)calloc(cfg.num_workers, sizeof(worker_context_t));
   if (!workers) {
     fprintf(stderr, "Error: failed to allocate workers\n");
+    free(worker_states);
+    cost_table_destroy(&cost_table);
+    oracle_cost_table_destroy(oracle_table);
     ndpi_global_deinit(g_ctx);
     return 1;
   }
@@ -593,6 +623,7 @@ int main(int argc, char **argv) {
       free(workers);
       free(worker_states);
       cost_table_destroy(&cost_table);
+      oracle_cost_table_destroy(oracle_table);
       ndpi_global_deinit(g_ctx);
       free(cfg.core_list);
       free(cfg.dispatcher_core_list);
@@ -607,6 +638,7 @@ int main(int argc, char **argv) {
       free(workers);
       free(worker_states);
       cost_table_destroy(&cost_table);
+      oracle_cost_table_destroy(oracle_table);
       ndpi_global_deinit(g_ctx);
       free(cfg.core_list);
       free(cfg.dispatcher_core_list);
@@ -621,14 +653,15 @@ int main(int argc, char **argv) {
   }
 
   dispatch_context_t *dispatch_ctx =
-      dispatch_context_create(&cost_table, &cost_profile, workers, cfg.num_workers,
-                              cfg.num_dispatchers);
+      dispatch_context_create(&cost_table, &cost_profile, oracle_table, cfg.policy,
+                              workers, cfg.num_workers, cfg.num_dispatchers);
   if (!dispatch_ctx) {
     fprintf(stderr, "Error: failed to create dispatch context\n");
     for (uint32_t i = 0; i < cfg.num_workers; i++) cleanup_worker(&workers[i]);
     free(workers);
     free(worker_states);
     cost_table_destroy(&cost_table);
+    oracle_cost_table_destroy(oracle_table);
     ndpi_global_deinit(g_ctx);
     free(cfg.core_list);
     free(cfg.dispatcher_core_list);
@@ -643,7 +676,8 @@ int main(int argc, char **argv) {
   printf("      PCAP: %s\n", cfg.pcap_file);
   printf("      Lookup: %s\n", cfg.lookup_file);
   printf("      Cost profile: %s\n", cfg.cost_profile_file);
-  printf("      Policy: %s\n", MARK7_POLICY_NAME);
+  if (cfg.oracle_file) printf("      Oracle: %s\n", cfg.oracle_file);
+  printf("      Policy: %s\n", dispatch_policy_name(cfg.policy));
   printf("      Workers: %u\n", cfg.num_workers);
   printf("      Dispatchers: %u\n", cfg.num_dispatchers);
   printf("\n----------------------------------------\n");
@@ -713,6 +747,7 @@ int main(int argc, char **argv) {
     free(workers);
     free(worker_states);
     cost_table_destroy(&cost_table);
+    oracle_cost_table_destroy(oracle_table);
     ndpi_global_deinit(g_ctx);
     free(cfg.core_list);
     free(cfg.dispatcher_core_list);
@@ -752,6 +787,7 @@ int main(int argc, char **argv) {
   free(workers);
   free(worker_states);
   cost_table_destroy(&cost_table);
+  oracle_cost_table_destroy(oracle_table);
   ndpi_global_deinit(g_ctx);
   free(cfg.core_list);
   free(cfg.dispatcher_core_list);

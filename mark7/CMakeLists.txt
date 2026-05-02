@@ -46,6 +46,7 @@ set(NDPI_BENCHMARK_SOURCES
   # 调度配置与策略
   src/cost_table.c
   src/dispatch.c
+  src/oracle_table.c
   # 公共工具（样本打印、绑核等）
   src/benchmark_common.c
   # 报文标准化/解析/flow key
@@ -89,12 +90,6 @@ add_executable(ndpiBenchmarkMark7
   ${NDPI_BENCHMARK_SOURCES}
 )
 configure_mark7_target(ndpiBenchmarkMark7)
-
-add_executable(ndpiBenchmarkMark7Hash
-  ${NDPI_BENCHMARK_SOURCES}
-)
-target_compile_definitions(ndpiBenchmarkMark7Hash PRIVATE MARK7_DISPATCH_HASH_ONLY=1)
-configure_mark7_target(ndpiBenchmarkMark7Hash)
 
 message(STATUS "")
 message(STATUS "=== ndpiBenchmarkMark7 ===")

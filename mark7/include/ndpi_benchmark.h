@@ -397,6 +397,14 @@ typedef enum {
   COST_BUCKET_HARD = 2
 } cost_bucket_t;
 
+typedef enum {
+  DISPATCH_POLICY_RSS = 0,
+  DISPATCH_POLICY_JSQ = 1,
+  DISPATCH_POLICY_STATIC_POOL = 2,
+  DISPATCH_POLICY_OURS = 3,
+  DISPATCH_POLICY_ORACLE = 4
+} dispatch_policy_t;
+
 #define COST_EASY_X1000   2000U
 #define COST_MIDDLE_X1000 7000U
 #define COST_HARD_X1000   15000U
@@ -443,6 +451,8 @@ typedef struct {
   uint64_t new_flow_assignments;
   uint64_t existing_flow_hits;
   uint64_t fallback_packets;
+  uint64_t oracle_hits;
+  uint64_t oracle_misses;
   uint64_t bucket_flow_counts[3];
   uint64_t worker_flow_counts[MAX_WORKERS];
 } dispatch_stats_t;
@@ -509,6 +519,8 @@ typedef struct {
   const char *proto_file;
   const char *lookup_file;
   const char *cost_profile_file;
+  const char *oracle_file;
+  dispatch_policy_t policy;
 } benchmark_config_t;
 
 uint32_t compute_flow_hash(const uint8_t *data, uint16_t len, uint32_t seed);
