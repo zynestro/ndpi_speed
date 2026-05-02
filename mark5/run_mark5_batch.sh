@@ -6,14 +6,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${MARK5_REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 INPUT_DIR="${1:-${REPO_ROOT}/input}"
 BATCH_TS="$(date +%Y%m%d_%H%M%S)"
-BATCH_DIR="${REPO_ROOT}/output/batch_${BATCH_TS}"
+EVALUATION_ROOT="${MARK5_EVALUATION_ROOT:-${REPO_ROOT}/evaluation}"
+BATCH_DIR="${EVALUATION_ROOT}/mark5/batch_${BATCH_TS}"
 LOG_FILE="${BATCH_DIR}/batch.log"
 RUNS_TSV="${BATCH_DIR}/runs.tsv"
 MANIFEST_JSON="${BATCH_DIR}/manifest.json"
 TIME_EXE="${REPO_ROOT}/mark5/build/ndpiBenchmarkMark5Time"
-HW_EXE="${REPO_ROOT}/mark5/build/ndpiBenchmarkMark5Hardware"
-PLOT_MANIFEST_PY="${REPO_ROOT}/mark5/plot_protocol_manifest.py"
-PLOT_OUTPUT_DIR="${BATCH_DIR}/plots"
+TIME_FIGURE_PY="${REPO_ROOT}/mark5/plot_time_only_figure1.py"
+TIME_FIGURE_DIR="${BATCH_DIR}/figure1_time"
 
 mkdir -p "${BATCH_DIR}"
 
@@ -98,24 +98,6 @@ manifest_path.write_text(json.dumps(manifest, indent=2))
 PY
 }
 
-run_plot_manifest() {
-  if [[ ! -f "${PLOT_MANIFEST_PY}" ]]; then
-    log "Plot script not found, skipping auto-plot: ${PLOT_MANIFEST_PY}"
-    return
-  fi
-
-  log "START auto-plot manifest=${MANIFEST_JSON}"
-  local output
-  output="$(python3 "${PLOT_MANIFEST_PY}" --manifest "${MANIFEST_JSON}" --output-dir "${PLOT_OUTPUT_DIR}" 2>&1)"
-  local rc=$?
-  printf '%s\n' "${output}" >> "${LOG_FILE}"
-  if [[ ${rc} -ne 0 ]]; then
-    log "ERROR auto-plot rc=${rc}"
-    return
-  fi
-  log "DONE auto-plot output=${PLOT_OUTPUT_DIR}"
-}
-
 run_one() {
   local exe="$1"
   local mode="$2"
@@ -146,13 +128,26 @@ run_one() {
   append_run_tsv "${pcap}" "${pcap_name}" "${mode}" "${core}" "${core_label}" "${status}" "${start_ts}" "${end_ts}" "${output_dir}" "${cmd}"
 }
 
+run_time_figure() {
+  if [[ ! -f "${TIME_FIGURE_PY}" ]]; then
+    log "Time-only figure script not found, skipping: ${TIME_FIGURE_PY}"
+    return
+  fi
+
+  log "START time-only parent-protocol Figure 1 manifest=${MANIFEST_JSON}"
+  local output
+  output="$(python3 "${TIME_FIGURE_PY}" --manifest "${MANIFEST_JSON}" --output-dir "${TIME_FIGURE_DIR}" 2>&1)"
+  local rc=$?
+  printf '%s\n' "${output}" >> "${LOG_FILE}"
+  if [[ ${rc} -ne 0 ]]; then
+    log "ERROR time-only Figure 1 rc=${rc}"
+    return
+  fi
+  log "DONE time-only Figure 1 output=${TIME_FIGURE_DIR}"
+}
+
 if [[ ! -x "${TIME_EXE}" ]]; then
   log "Missing executable: ${TIME_EXE}"
-  exit 1
-fi
-
-if [[ ! -x "${HW_EXE}" ]]; then
-  log "Missing executable: ${HW_EXE}"
   exit 1
 fi
 
@@ -174,12 +169,11 @@ fi
 for pcap in "${PCAPS[@]}"; do
   pcap_name="$(basename "${pcap}")"
   run_one "${TIME_EXE}" "time" 0 "P" "${pcap}" "${pcap_name}"
-  run_one "${HW_EXE}" "hardware" 0 "P" "${pcap}" "${pcap_name}"
   run_one "${TIME_EXE}" "time" 19 "E" "${pcap}" "${pcap_name}"
-  run_one "${HW_EXE}" "hardware" 19 "E" "${pcap}" "${pcap_name}"
 done
 
 build_manifest
 log "Manifest saved: ${MANIFEST_JSON}"
-run_plot_manifest
+run_time_figure
+log "Time-only batch finished; hardware profiling was skipped"
 log "Batch finished"
