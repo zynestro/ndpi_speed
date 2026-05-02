@@ -403,9 +403,22 @@ static bool flush_enqueue_batch(reader_context_t *ctx,
                                     batches[worker_id],
                                     count);
   if (ok) {
-    atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
-                              count,
-                              memory_order_relaxed);
+    uint32_t old_depth =
+        atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
+                                  count,
+                                  memory_order_relaxed);
+    uint32_t depth = old_depth + count;
+    uint32_t prev =
+        atomic_load_explicit(&ctx->workers[worker_id].runtime->max_queue_depth,
+                             memory_order_relaxed);
+    while (depth > prev &&
+           !atomic_compare_exchange_weak_explicit(
+               &ctx->workers[worker_id].runtime->max_queue_depth,
+               &prev,
+               depth,
+               memory_order_relaxed,
+               memory_order_relaxed)) {
+    }
   }
   counts[worker_id] = 0;
   return ok;
@@ -476,6 +489,7 @@ static void *dispatcher_thread_entry(void *arg) {
     packet_queue_batch_item_t *item = &enqueue_batches[worker_id][batch_pos];
     item->data = pkt->data;
     item->timestamp_us = pkt->timestamp_us;
+    item->enqueue_time_ns = t_enq0;
     item->caplen = pkt->caplen;
     item->wirelen = pkt->wirelen;
     item->retire_cost_x1000 = retire_cost_x1000;
@@ -491,13 +505,27 @@ static void *dispatcher_thread_entry(void *arg) {
                                       pkt->caplen,
                                       pkt->wirelen,
                                       pkt->timestamp_us,
+                                      t_enq0,
                                       retire_cost_x1000);
 #endif
 #ifndef NDPI_BENCHMARK_BATCH
     if (enqueued) {
-      atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
-                                1,
-                                memory_order_relaxed);
+      uint32_t old_depth =
+          atomic_fetch_add_explicit(&ctx->workers[worker_id].runtime->queue_depth,
+                                    1,
+                                    memory_order_relaxed);
+      uint32_t depth = old_depth + 1;
+      uint32_t prev =
+          atomic_load_explicit(&ctx->workers[worker_id].runtime->max_queue_depth,
+                               memory_order_relaxed);
+      while (depth > prev &&
+             !atomic_compare_exchange_weak_explicit(
+                 &ctx->workers[worker_id].runtime->max_queue_depth,
+                 &prev,
+                 depth,
+                 memory_order_relaxed,
+                 memory_order_relaxed)) {
+      }
     }
 #else
     (void)enqueued;

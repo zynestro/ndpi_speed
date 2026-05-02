@@ -18,6 +18,21 @@
 #define DEFAULT_E_WORKER_CORES 8
 #define DEFAULT_DISPATCHER_CORE_BASE 16
 
+static int cmp_u64(const void *a, const void *b) {
+  uint64_t va = *(const uint64_t *)a;
+  uint64_t vb = *(const uint64_t *)b;
+  return (va > vb) - (va < vb);
+}
+
+static uint64_t percentile_sorted_u64(const uint64_t *values, size_t count, double p) {
+  if (!values || count == 0) return 0;
+  if (p <= 0.0) return values[0];
+  if (p >= 1.0) return values[count - 1];
+  size_t idx = (size_t)((double)(count - 1) * p + 0.5);
+  if (idx >= count) idx = count - 1;
+  return values[idx];
+}
+
 void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
                              uint64_t total_cycles, double elapsed_sec,
                              uint64_t preprocess_ns,
@@ -52,6 +67,7 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
   uint64_t total_classified_fastpath_ns = 0;
   uint64_t total_other_ns = 0;
   uint64_t per_core_process_ns[PROCESS_TIME_CORE_SLOTS] = {0};
+  size_t total_latency_samples = 0;
 
   for (uint32_t i = 0; i < num_workers; i++) {
     total_packets += workers[i].packets_processed;
@@ -74,6 +90,7 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
     total_ndpi_ns += workers[i].ndpi_time_ns;
     total_classified_fastpath_ns += workers[i].classified_fastpath_ns;
     total_other_ns += workers[i].other_time_ns;
+    total_latency_samples += workers[i].flow_detect_latency_count;
   }
 
   double pps = (effective_elapsed_sec > 0.0) ? (double)total_packets / effective_elapsed_sec : 0.0;
@@ -117,10 +134,34 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
   printf("\n");
   printf("Total Packets: %lu\n", (unsigned long)total_packets);
   printf("Total Bytes: %.2f MB\n", (double)total_bytes / 1024.0 / 1024.0);
+  printf("Total Flows: %lu\n", (unsigned long)total_flows);
   printf("\nPerformance:\n");
   printf("  Throughput: %.2f Mpps\n", pps / 1e6);
+  printf("  Flow Throughput: %.2f flows/s\n",
+         effective_elapsed_sec > 0.0 ? (double)total_flows / effective_elapsed_sec : 0.0);
   printf("  Bandwidth: %.2f Gbps\n", gbps);
   printf("  Cycles per packet: %.2f\n", cycles_per_packet);
+
+  if (total_latency_samples > 0) {
+    uint64_t *latencies = (uint64_t *)malloc(total_latency_samples * sizeof(uint64_t));
+    if (latencies) {
+      size_t pos = 0;
+      for (uint32_t i = 0; i < num_workers; i++) {
+        memcpy(&latencies[pos],
+               workers[i].flow_detect_latency_ns,
+               workers[i].flow_detect_latency_count * sizeof(uint64_t));
+        pos += workers[i].flow_detect_latency_count;
+      }
+      qsort(latencies, total_latency_samples, sizeof(uint64_t), cmp_u64);
+      uint64_t p50 = percentile_sorted_u64(latencies, total_latency_samples, 0.50);
+      uint64_t p99 = percentile_sorted_u64(latencies, total_latency_samples, 0.99);
+      printf("Per-Flow Detecting Latency: samples=%zu p50=%.6f ms p99=%.6f ms\n",
+             total_latency_samples,
+             (double)p50 / 1000000.0,
+             (double)p99 / 1000000.0);
+      free(latencies);
+    }
+  }
 
   printf("\nProtocol Detection Verification:\n");
   printf("  Total flows created: %lu\n", (unsigned long)total_flows);
@@ -185,14 +226,15 @@ void print_benchmark_results(worker_context_t *workers, uint32_t num_workers,
         have_worker_load = true;
       }
       printf("  Worker %2u [Core %2u]: %.2f Mpps, %.2f Gbps, %lu flows, %.3f s proc "
-             "(parse %.3f, flow %.3f, ndpi %.3f)\n",
+             "(parse %.3f, flow %.3f, ndpi %.3f, maxq %u)\n",
              i, workers[i].cpu_core,
              w_pps / 1e6, w_gbps,
              (unsigned long)workers[i].flows_created_total,
              (double)workers[i].processing_time_ns / 1000000000.0,
              (double)workers[i].parse_time_ns / 1000000000.0,
              (double)workers[i].flow_time_ns / 1000000000.0,
-             (double)workers[i].ndpi_time_ns / 1000000000.0);
+             (double)workers[i].ndpi_time_ns / 1000000000.0,
+             atomic_load_explicit(&workers[i].runtime->max_queue_depth, memory_order_relaxed));
     }
 
     printf("\nPer-Worker Load Details:\n");
@@ -380,6 +422,7 @@ static worker_runtime_state_t *alloc_worker_runtime_states(const uint32_t *cores
     atomic_init(&states[i].added_cost_x1000, 0);
     atomic_init(&states[i].retired_cost_x1000, 0);
     atomic_init(&states[i].queue_depth, 0);
+    atomic_init(&states[i].max_queue_depth, 0);
   }
 
   return states;

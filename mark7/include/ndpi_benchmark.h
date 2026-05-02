@@ -56,6 +56,7 @@ struct classified_table;
 /* 队列元素：默认复制包数据；QUEUE_PACKET_USE_REF=1 时只保存预加载包指针。 */
 typedef struct {
   uint64_t timestamp_us;
+  uint64_t enqueue_time_ns;
   const uint8_t *data;
   uint16_t caplen;
   uint16_t wirelen;
@@ -85,6 +86,7 @@ typedef struct {
 typedef struct {
   const uint8_t *data;
   uint64_t timestamp_us;
+  uint64_t enqueue_time_ns;
   uint16_t caplen;
   uint16_t wirelen;
   uint32_t retire_cost_x1000;
@@ -141,7 +143,8 @@ static inline void packet_queue_destroy(packet_queue_t *q) {
 /* 入队（生产者调用）- 阻塞直到有空间 */
 static inline bool packet_queue_push(packet_queue_t *q,
                                      const uint8_t *data, uint16_t caplen, uint16_t wirelen,
-                                     uint64_t timestamp_us, uint32_t retire_cost_x1000) {
+                                     uint64_t timestamp_us, uint64_t enqueue_time_ns,
+                                     uint32_t retire_cost_x1000) {
 #if !QUEUE_PACKET_USE_REF
   if (caplen > QUEUE_PACKET_DATA_SIZE) return false;
 #endif
@@ -162,6 +165,7 @@ static inline bool packet_queue_push(packet_queue_t *q,
 
   queue_packet_t *slot = &q->buffer[head & q->mask];
   slot->timestamp_us = timestamp_us;
+  slot->enqueue_time_ns = enqueue_time_ns;
   slot->data = data;
   slot->caplen = caplen;
   slot->wirelen = wirelen;
@@ -205,6 +209,7 @@ static inline bool packet_queue_push_batch(packet_queue_t *q,
     const packet_queue_batch_item_t *item = &items[i];
     queue_packet_t *slot = &q->buffer[(head + i) & q->mask];
     slot->timestamp_us = item->timestamp_us;
+    slot->enqueue_time_ns = item->enqueue_time_ns;
     slot->data = item->data;
     slot->caplen = item->caplen;
     slot->wirelen = item->wirelen;
@@ -384,6 +389,7 @@ typedef struct {
 
   /* Set to true once we have counted this flow as "protocol detected" */
   bool protocol_counted;
+  uint64_t first_enqueue_time_ns;
 } bench_flow_t;
 
 typedef enum {
@@ -418,6 +424,7 @@ typedef struct __attribute__((aligned(64))) {
   _Atomic uint64_t added_cost_x1000;
   _Atomic uint64_t retired_cost_x1000;
   _Atomic uint32_t queue_depth;
+  _Atomic uint32_t max_queue_depth;
   uint8_t core_type;
   uint8_t core_id;
   uint16_t speed_factor_x1000;
@@ -489,6 +496,9 @@ typedef struct {
   uint64_t bytes_processed;
   uint64_t flows_created_total;
   uint64_t flows_with_protocol_total;
+  uint64_t *flow_detect_latency_ns;
+  size_t flow_detect_latency_count;
+  size_t flow_detect_latency_cap;
   uint64_t processing_time_ns;
   uint64_t parse_time_ns;
   uint64_t keybuild_time_ns;

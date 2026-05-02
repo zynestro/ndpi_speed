@@ -119,6 +119,24 @@ void cleanup_worker(worker_context_t *worker) {
     packet_queue_destroy(worker->queue);
     worker->queue = NULL;
   }
+
+  free(worker->flow_detect_latency_ns);
+  worker->flow_detect_latency_ns = NULL;
+  worker->flow_detect_latency_count = 0;
+  worker->flow_detect_latency_cap = 0;
+}
+
+static void worker_record_flow_detect_latency(worker_context_t *w,
+                                              uint64_t latency_ns) {
+  if (w->flow_detect_latency_count == w->flow_detect_latency_cap) {
+    size_t next_cap = w->flow_detect_latency_cap ? w->flow_detect_latency_cap * 2 : 1024;
+    uint64_t *next =
+        (uint64_t *)realloc(w->flow_detect_latency_ns, next_cap * sizeof(uint64_t));
+    if (!next) return;
+    w->flow_detect_latency_ns = next;
+    w->flow_detect_latency_cap = next_cap;
+  }
+  w->flow_detect_latency_ns[w->flow_detect_latency_count++] = latency_ns;
 }
 
 /* 新建 flow 时，把 bench 解析结果映射到 ndpi_flow_struct 的 5 元组字段。 */
@@ -266,6 +284,7 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
 
     flow->client = src_ep;
     flow->server = dst_ep;
+    flow->first_enqueue_time_ns = pkt->enqueue_time_ns ? pkt->enqueue_time_ns : t0;
     /* 这里把“首次方向”固化到 flow，用于后续 dir 判定。 */
 
     flow->ndpi_flow = (struct ndpi_flow_struct *)ndpi_calloc(1, sizeof(struct ndpi_flow_struct));
@@ -337,6 +356,11 @@ static inline void worker_process_packet(worker_context_t *w, const queue_packet
     if (app != NDPI_PROTOCOL_UNKNOWN) {
       flow->protocol_counted = true;
       w->flows_with_protocol_total++;
+      uint64_t detect_now_ns = get_time_ns();
+      uint64_t first_ns = flow->first_enqueue_time_ns ? flow->first_enqueue_time_ns : t0;
+      if (detect_now_ns >= first_ns) {
+        worker_record_flow_detect_latency(w, detect_now_ns - first_ns);
+      }
       /* 样本打印只做展示，不影响识别结果。 */
       maybe_print_flow_sample(w, flow);
 #ifdef NDPI_BENCHMARK_CLASSIFIED
