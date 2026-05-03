@@ -10,8 +10,10 @@ giving small pcaps the same weight as large pcaps.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
+from collections import defaultdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -101,6 +103,119 @@ def collect_flows(manifest: dict) -> pd.DataFrame:
     flows = pd.concat(frames, ignore_index=True)
     flows.attrs["missing_runs"] = missing
     return flows
+
+
+def collect_parent_summary_streaming(manifest: dict, include_not_detected: bool) -> tuple[pd.DataFrame, int, list[str]]:
+    groups: dict[tuple[str, str], dict] = {}
+    missing: list[str] = []
+    total_rows = 0
+
+    metric_cols = DEFAULT_METRICS
+
+    for entry in manifest.get("pcaps", []):
+        pcap_name = entry.get("name", "unknown")
+        runs = entry.get("runs", {})
+        for core_label, key in CORE_KEYS.items():
+            run = runs.get(key)
+            if not run or run.get("status") != "success" or not run.get("output_dir"):
+                missing.append(f"{pcap_name}:{key}")
+                continue
+            csv_path = Path(run["output_dir"]) / TIME_FLOW_CSV
+            if not csv_path.exists():
+                missing.append(f"{pcap_name}:{key}:{csv_path}")
+                continue
+
+            with csv_path.open(newline="") as f:
+                reader = csv.DictReader(f)
+                if not reader.fieldnames or "protocol" not in reader.fieldnames:
+                    raise ValueError(f"Missing protocol column: {csv_path}")
+                for row in reader:
+                    total_rows += 1
+                    protocol = str(row.get("protocol", "")).strip()
+                    parent = protocol_parent(protocol)
+                    detected = int(float(str(row.get("protocol_detected", "1")).strip() or 0))
+                    if not include_not_detected and (parent == "NOT_DETECTED" or detected != 1):
+                        continue
+
+                    gkey = (core_label, parent)
+                    group = groups.get(gkey)
+                    if group is None:
+                        group = {
+                            "core_label": core_label,
+                            "protocol": parent,
+                            "protocol_detected": 0,
+                            "master_proto_values": set(),
+                            "app_proto_values": set(),
+                            "category_id_values": set(),
+                            "category_name": "MIXED",
+                            "flows": 0,
+                            "source_protocols": set(),
+                            "pcaps": set(),
+                            "sum": defaultdict(float),
+                            "sumsq": defaultdict(float),
+                        }
+                        groups[gkey] = group
+
+                    group["flows"] += 1
+                    group["protocol_detected"] = max(group["protocol_detected"], detected)
+                    group["source_protocols"].add(protocol)
+                    group["pcaps"].add(pcap_name)
+                    cat_name = str(row.get("category_name", "")).strip()
+                    if cat_name and group["category_name"] == "MIXED":
+                        group["category_name"] = cat_name
+
+                    for source_col, target_set in (
+                        ("master_proto", group["master_proto_values"]),
+                        ("app_proto", group["app_proto_values"]),
+                        ("category_id", group["category_id_values"]),
+                    ):
+                        value = str(row.get(source_col, "")).strip()
+                        if value:
+                            try:
+                                target_set.add(int(float(value)))
+                            except ValueError:
+                                pass
+
+                    for col in metric_cols:
+                        try:
+                            value = float(str(row.get(col, "0")).strip() or 0.0)
+                        except ValueError:
+                            value = 0.0
+                        group["sum"][col] += value
+                        group["sumsq"][col] += value * value
+
+    rows = []
+    for group in groups.values():
+        flows = int(group["flows"])
+        row = {
+            "core_label": group["core_label"],
+            "protocol": group["protocol"],
+            "protocol_detected": group["protocol_detected"],
+            "master_proto": next(iter(group["master_proto_values"])) if len(group["master_proto_values"]) == 1 else -1,
+            "app_proto": next(iter(group["app_proto_values"])) if len(group["app_proto_values"]) == 1 else -1,
+            "category_name": group["category_name"],
+            "category_id": next(iter(group["category_id_values"])) if len(group["category_id_values"]) == 1 else -1,
+            "flows": flows,
+            "source_protocols": "|".join(sorted(group["source_protocols"])),
+            "pcaps": "|".join(sorted(group["pcaps"])),
+        }
+        for col in metric_cols:
+            avg = group["sum"][col] / flows if flows else 0.0
+            var = group["sumsq"][col] / flows - avg * avg if flows else 0.0
+            row[f"avg_{col}"] = avg
+            row[f"var_{col}"] = max(0.0, var)
+        row["avg_detecting_non_detection_ms"] = max(
+            0.0,
+            row.get("avg_detecting_total_ms", 0.0) - row.get("avg_detecting_detection_only_ms", 0.0),
+        )
+        rows.append(row)
+
+    if not rows:
+        raise RuntimeError("No flow rows remain after filtering.")
+
+    summary = pd.DataFrame(rows)
+    summary = summary.sort_values(["core_label", "avg_detecting_total_ms"], ascending=[True, False]).reset_index(drop=True)
+    return summary, total_rows, missing
 
 
 def variance(series: pd.Series) -> float:
@@ -330,8 +445,10 @@ def main() -> None:
     output_dir = Path(args.output_dir) if args.output_dir else batch_dir / "figure1_time"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    flows = collect_flows(manifest)
-    summary = aggregate_parent_protocols(flows, include_not_detected=args.include_not_detected)
+    summary, flow_rows, missing_runs = collect_parent_summary_streaming(
+        manifest,
+        include_not_detected=args.include_not_detected,
+    )
     plot_table = build_plot_table(summary, max_protocols=args.max_protocols, edge_count=args.edge_count)
 
     summary.to_csv(output_dir / "time_protocol_parent_summary_by_core.csv", index=False)
@@ -346,12 +463,13 @@ def main() -> None:
     report = {
         "manifest": str(manifest_path),
         "output_dir": str(output_dir),
-        "flow_rows": int(len(flows)),
+        "flow_rows": int(flow_rows),
         "parent_protocol_rows": int(len(summary)),
         "protocols_in_both_cores": int(len(plot_table)),
         "selected_protocols": plot_table.loc[plot_table["selected_for_plot"], "protocol"].tolist(),
-        "missing_runs": flows.attrs.get("missing_runs", []),
+        "missing_runs": missing_runs,
         "parent_protocol_rule": "protocol.split('.', 1)[0]",
+        "aggregation": "streaming CSV aggregation by core_label and parent protocol",
         "figure_png": str(output_dir / "figure1_protocol_detecting_cost.png"),
         "figure_pdf": str(output_dir / "figure1_protocol_detecting_cost.pdf"),
     }
