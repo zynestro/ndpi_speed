@@ -45,11 +45,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--manifest", required=True, help="Path to batch manifest.json")
     parser.add_argument("--output-dir", default=None, help="Output directory; default: <batch_dir>/figure1_time")
-    parser.add_argument("--max-protocols", type=int, default=15, help="If exceeded, keep low/high edges only")
+    parser.add_argument("--max-protocols", type=int, default=0, help="Optional protocol cap; 0 keeps all protocols")
     parser.add_argument("--edge-count", type=int, default=6, help="Protocols kept from each edge when truncating")
     parser.add_argument("--ratio-line", type=float, default=0.0, help="Horizontal reference line in subplot b; <=0 uses the mean speedup")
     parser.add_argument("--include-not-detected", action="store_true", help="Keep NOT_DETECTED rows")
-    parser.add_argument("--top-error", choices=["sem", "std", "none"], default="std", help="Error bar on stacked totals")
+    parser.add_argument("--top-error", choices=["sem", "std", "none"], default="std", help="Error bar on detection-only bars")
     return parser.parse_args()
 
 
@@ -288,7 +288,7 @@ def build_plot_table(summary: pd.DataFrame, max_protocols: int, edge_count: int)
         rows.append(
             {
                 "protocol": protocol,
-                "sort_cost_ms": (p_total + e_total) / 2.0,
+                "sort_cost_ms": (p_det + e_det) / 2.0,
                 "p_flows": int(p_row["flows"]),
                 "e_flows": int(e_row["flows"]),
                 "p_total_ms": p_total,
@@ -301,13 +301,17 @@ def build_plot_table(summary: pd.DataFrame, max_protocols: int, edge_count: int)
                 "e_total_sem_ms": math.sqrt(max(float(e_row.get("var_detecting_total_ms", 0.0)), 0.0) / max(int(e_row["flows"]), 1)),
                 "p_total_std_ms": math.sqrt(max(float(p_row.get("var_detecting_total_ms", 0.0)), 0.0)),
                 "e_total_std_ms": math.sqrt(max(float(e_row.get("var_detecting_total_ms", 0.0)), 0.0)),
-                "slow_over_fast_total": e_total / p_total if p_total > 0 else np.nan,
+                "p_detection_only_sem_ms": math.sqrt(max(float(p_row.get("var_detecting_detection_only_ms", 0.0)), 0.0) / max(int(p_row["flows"]), 1)),
+                "e_detection_only_sem_ms": math.sqrt(max(float(e_row.get("var_detecting_detection_only_ms", 0.0)), 0.0) / max(int(e_row["flows"]), 1)),
+                "p_detection_only_std_ms": math.sqrt(max(float(p_row.get("var_detecting_detection_only_ms", 0.0)), 0.0)),
+                "e_detection_only_std_ms": math.sqrt(max(float(e_row.get("var_detecting_detection_only_ms", 0.0)), 0.0)),
+                "slow_over_fast_detection_only": e_det / p_det if p_det > 0 else np.nan,
             }
         )
 
     out = pd.DataFrame(rows).sort_values("sort_cost_ms", ascending=True).reset_index(drop=True)
     out["selected_for_plot"] = True
-    if len(out) > max_protocols:
+    if max_protocols > 0 and len(out) > max_protocols:
         edge_count = max(1, min(edge_count, max_protocols // 2))
         keep_idx = set(out.head(edge_count).index) | set(out.tail(edge_count).index)
         out["selected_for_plot"] = out.index.isin(keep_idx)
@@ -351,52 +355,35 @@ def selected_with_gap(plot_df: pd.DataFrame) -> pd.DataFrame:
 
 def plot_figure(plot_df: pd.DataFrame, output_base: Path, ratio_line: float, error_kind: str) -> None:
     configure_style()
-    shown = selected_with_gap(plot_df)
+    shown = plot_df.copy().reset_index(drop=True)
     labels = shown["protocol"].tolist()
     x = np.arange(len(shown))
     width = 0.36
 
     p_color = "#2F6DAE"
     e_color = "#C76E2A"
-    p_light = "#9DBFE2"
-    e_light = "#E7B486"
 
+    fig_width = max(7.2, min(18.0, 0.42 * len(shown) + 2.0))
     fig, axes = plt.subplots(
         2,
         1,
-        figsize=(7.2, 5.2),
+        figsize=(fig_width, 5.2),
         sharex=True,
         constrained_layout=True,
         gridspec_kw={"height_ratios": [1.35, 1.0], "hspace": 0.08},
     )
     ax = axes[0]
-    valid = shown["protocol"] != "..."
+    valid = np.ones(len(shown), dtype=bool)
 
-    ax.bar(x[valid] - width / 2, shown.loc[valid, "p_detection_only_ms"], width, color=p_color, label="P detection-only")
-    ax.bar(
-        x[valid] - width / 2,
-        shown.loc[valid, "p_other_ms"],
-        width,
-        bottom=shown.loc[valid, "p_detection_only_ms"],
-        color=p_light,
-        label="P other",
-    )
-    ax.bar(x[valid] + width / 2, shown.loc[valid, "e_detection_only_ms"], width, color=e_color, label="E detection-only")
-    ax.bar(
-        x[valid] + width / 2,
-        shown.loc[valid, "e_other_ms"],
-        width,
-        bottom=shown.loc[valid, "e_detection_only_ms"],
-        color=e_light,
-        label="E other",
-    )
+    ax.bar(x[valid] - width / 2, shown.loc[valid, "p_detection_only_ms"], width, color=p_color, label="Fast core")
+    ax.bar(x[valid] + width / 2, shown.loc[valid, "e_detection_only_ms"], width, color=e_color, label="Slow core")
 
     if error_kind != "none":
         suffix = "sem_ms" if error_kind == "sem" else "std_ms"
         ax.errorbar(
             x[valid] - width / 2,
-            shown.loc[valid, "p_total_ms"],
-            yerr=shown.loc[valid, f"p_total_{suffix}"],
+            shown.loc[valid, "p_detection_only_ms"],
+            yerr=shown.loc[valid, f"p_detection_only_{suffix}"],
             fmt="none",
             ecolor="#27313C",
             elinewidth=0.7,
@@ -404,8 +391,8 @@ def plot_figure(plot_df: pd.DataFrame, output_base: Path, ratio_line: float, err
         )
         ax.errorbar(
             x[valid] + width / 2,
-            shown.loc[valid, "e_total_ms"],
-            yerr=shown.loc[valid, f"e_total_{suffix}"],
+            shown.loc[valid, "e_detection_only_ms"],
+            yerr=shown.loc[valid, f"e_detection_only_{suffix}"],
             fmt="none",
             ecolor="#27313C",
             elinewidth=0.7,
@@ -418,7 +405,7 @@ def plot_figure(plot_df: pd.DataFrame, output_base: Path, ratio_line: float, err
     ax.grid(axis="x", visible=False)
 
     ax = axes[1]
-    speedups = shown.loc[valid, "slow_over_fast_total"]
+    speedups = shown.loc[valid, "slow_over_fast_detection_only"]
     mean_ratio = float(pd.to_numeric(speedups, errors="coerce").dropna().mean()) if ratio_line <= 0.0 else ratio_line
     ax.bar(x[valid], speedups, width=0.58, color="#5D6470")
     if math.isfinite(mean_ratio) and mean_ratio > 0.0:
