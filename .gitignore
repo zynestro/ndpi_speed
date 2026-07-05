@@ -36,6 +36,7 @@ __pycache__/
 output/
 evaluation/
 mark1/benchmark_results/
+output-temp/
 
 # Local data dumps
 input/
@@ -47,4 +48,7 @@ sweep3.yaml
 
 ndpi-speed-0503/
 ndpi-speed-0625/
-gc-evaluation/
+
+globecom-evaluation/
+
+/binary
