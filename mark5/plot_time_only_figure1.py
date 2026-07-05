@@ -16,6 +16,9 @@ import math
 from collections import defaultdict
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -23,6 +26,11 @@ import pandas as pd
 
 TIME_FLOW_CSV = "time_flow_profile.csv"
 CORE_KEYS = {"P": "p_time", "E": "e_time"}
+P_COLOR = "#4E79A7"
+E_COLOR = "#F28E2B"
+RATIO_COLOR = "#7A8797"
+MEAN_LINE_COLOR = "#E15759"
+EDGE_COLOR = "#333333"
 DEFAULT_METRICS = [
     "detect_pkt_in_flow",
     "detecting_total_ms",
@@ -49,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--edge-count", type=int, default=6, help="Protocols kept from each edge when truncating")
     parser.add_argument("--ratio-line", type=float, default=0.0, help="Horizontal reference line in subplot b; <=0 uses the mean speedup")
     parser.add_argument("--include-not-detected", action="store_true", help="Keep NOT_DETECTED rows")
-    parser.add_argument("--top-error", choices=["sem", "std", "none"], default="std", help="Error bar on detection-only bars")
+    parser.add_argument("--top-error", choices=["sem", "std", "none"], default="none", help="Optional legacy error bar on detection-only bars")
     return parser.parse_args()
 
 
@@ -319,28 +327,36 @@ def build_plot_table(summary: pd.DataFrame, max_protocols: int, edge_count: int)
 
 
 def configure_style() -> None:
-    plt.style.use("seaborn-v0_8-whitegrid")
     plt.rcParams.update(
         {
-            "figure.dpi": 160,
-            "savefig.dpi": 300,
-            "font.size": 9,
-            "axes.labelsize": 9,
-            "axes.titlesize": 10,
-            "axes.titleweight": "semibold",
-            "xtick.labelsize": 8,
-            "ytick.labelsize": 8,
-            "legend.fontsize": 8,
-            "axes.edgecolor": "#3E4651",
-            "axes.linewidth": 0.8,
-            "grid.color": "#D5DAE2",
+            "font.family": "serif",
+            "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+            "font.size": 8,
+            "axes.labelsize": 8,
+            "axes.titlesize": 9,
+            "legend.fontsize": 7,
+            "xtick.labelsize": 7,
+            "ytick.labelsize": 7,
+            "axes.edgecolor": EDGE_COLOR,
+            "axes.linewidth": 0.6,
+            "axes.axisbelow": True,
+            "axes.grid": True,
+            "axes.grid.axis": "y",
+            "grid.color": "#CCCCCC",
             "grid.linestyle": "--",
-            "grid.linewidth": 0.5,
+            "grid.linewidth": 0.3,
+            "figure.dpi": 300,
+            "savefig.dpi": 300,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.03,
         }
     )
 
 
 def selected_with_gap(plot_df: pd.DataFrame) -> pd.DataFrame:
+    if "selected_for_plot" not in plot_df.columns:
+        return plot_df.copy().reset_index(drop=True)
+
     selected = plot_df[plot_df["selected_for_plot"]].copy()
     if len(selected) == len(plot_df):
         return selected.reset_index(drop=True)
@@ -355,28 +371,45 @@ def selected_with_gap(plot_df: pd.DataFrame) -> pd.DataFrame:
 
 def plot_figure(plot_df: pd.DataFrame, output_base: Path, ratio_line: float, error_kind: str) -> None:
     configure_style()
-    shown = plot_df.copy().reset_index(drop=True)
+    plot_df = strip_dataframe(plot_df)
+    shown = selected_with_gap(plot_df).reset_index(drop=True)
     labels = shown["protocol"].tolist()
     x = np.arange(len(shown))
-    width = 0.36
+    width = 0.34
 
-    p_color = "#2F6DAE"
-    e_color = "#C76E2A"
-
-    fig_width = max(7.2, min(18.0, 0.42 * len(shown) + 2.0))
+    fig_width = max(7.1, min(12.5, 0.32 * len(shown) + 2.6))
     fig, axes = plt.subplots(
         2,
         1,
-        figsize=(fig_width, 5.2),
+        figsize=(fig_width, 4.4),
         sharex=True,
         constrained_layout=True,
         gridspec_kw={"height_ratios": [1.35, 1.0], "hspace": 0.08},
     )
     ax = axes[0]
-    valid = np.ones(len(shown), dtype=bool)
+    valid = shown["protocol"].ne("...").to_numpy()
 
-    ax.bar(x[valid] - width / 2, shown.loc[valid, "p_detection_only_ms"], width, color=p_color, label="Fast core")
-    ax.bar(x[valid] + width / 2, shown.loc[valid, "e_detection_only_ms"], width, color=e_color, label="Slow core")
+    ax.bar(
+        x[valid] - width / 2,
+        shown.loc[valid, "p_detection_only_ms"],
+        width,
+        color=P_COLOR,
+        edgecolor=EDGE_COLOR,
+        linewidth=0.5,
+        label="P-core",
+        zorder=3,
+    )
+    ax.bar(
+        x[valid] + width / 2,
+        shown.loc[valid, "e_detection_only_ms"],
+        width,
+        color=E_COLOR,
+        edgecolor=EDGE_COLOR,
+        linewidth=0.5,
+        hatch="//",
+        label="E-core",
+        zorder=3,
+    )
 
     if error_kind != "none":
         suffix = "sem_ms" if error_kind == "sem" else "std_ms"
@@ -400,24 +433,34 @@ def plot_figure(plot_df: pd.DataFrame, output_base: Path, ratio_line: float, err
         )
 
     ax.set_ylabel("Detecting cost (ms)")
-    ax.set_title("(a) Per-protocol detecting cost")
-    ax.legend(ncol=2, frameon=False, loc="upper left")
+    ax.text(0.01, 0.97, "(a) Per-protocol detecting cost", transform=ax.transAxes, ha="left", va="top")
+    ax.legend(ncol=2, frameon=True, fancybox=False, edgecolor="#999999", loc="upper right")
     ax.grid(axis="x", visible=False)
+    ax.margins(x=0.01, y=0.12)
 
     ax = axes[1]
     speedups = shown.loc[valid, "slow_over_fast_detection_only"]
     mean_ratio = float(pd.to_numeric(speedups, errors="coerce").dropna().mean()) if ratio_line <= 0.0 else ratio_line
-    ax.bar(x[valid], speedups, width=0.58, color="#5D6470")
+    ax.bar(
+        x[valid],
+        speedups,
+        width=0.55,
+        color=RATIO_COLOR,
+        edgecolor=EDGE_COLOR,
+        linewidth=0.5,
+        zorder=3,
+    )
     if math.isfinite(mean_ratio) and mean_ratio > 0.0:
-        ax.axhline(mean_ratio, color="#B23A48", linestyle="--", linewidth=1.0, label=f"mean {mean_ratio:.2f}x")
-    ax.set_ylabel("Slow / fast ratio")
-    ax.set_title("(b) P/E ratio per protocol")
-    ax.legend(frameon=False, loc="upper left")
+        ax.axhline(mean_ratio, color=MEAN_LINE_COLOR, linestyle="--", linewidth=0.9, label=f"mean {mean_ratio:.2f}x", zorder=4)
+    ax.set_ylabel("E / P ratio")
+    ax.text(0.01, 0.97, "(b) P/E detecting-cost ratio", transform=ax.transAxes, ha="left", va="top")
+    ax.legend(frameon=True, fancybox=False, edgecolor="#999999", loc="upper right")
     ax.grid(axis="x", visible=False)
     ax.set_xticks(x, labels)
-    ax.tick_params(axis="x", rotation=35)
+    ax.tick_params(axis="x", rotation=35, length=0)
     for tick in ax.get_xticklabels():
         tick.set_horizontalalignment("right")
+    ax.margins(x=0.01, y=0.12)
 
     fig.savefig(output_base.with_suffix(".png"))
     fig.savefig(output_base.with_suffix(".pdf"))

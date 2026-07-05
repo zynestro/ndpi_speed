@@ -136,7 +136,7 @@ run_time_figure() {
 
   log "START time-only parent-protocol Figure 1 manifest=${MANIFEST_JSON}"
   local output
-  output="$(python3 "${TIME_FIGURE_PY}" --manifest "${MANIFEST_JSON}" --output-dir "${TIME_FIGURE_DIR}" 2>&1)"
+  output="$(python3 "${TIME_FIGURE_PY}" --manifest "${MANIFEST_JSON}" --output-dir "${TIME_FIGURE_DIR}" --top-error none 2>&1)"
   local rc=$?
   printf '%s\n' "${output}" >> "${LOG_FILE}"
   if [[ ${rc} -ne 0 ]]; then

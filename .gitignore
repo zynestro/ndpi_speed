@@ -44,3 +44,7 @@ input/
 archive/ssh_detector/ssh_detector
 
 sweep3.yaml
+
+ndpi-speed-0503/
+ndpi-speed-0625/
+gc-evaluation/
