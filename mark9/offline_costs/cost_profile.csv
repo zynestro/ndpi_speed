@@ -1,0 +1,9 @@
+# Initial P-core profile from flow-weighted bucket representatives.
+# E-core rows temporarily mirror P-core rows; replace them after E-core profiling.
+core_type,bucket,cost_us
+P,Easy,2.262390
+P,Middle,7.626345
+P,Hard,17.278661
+E,Easy,4.120156
+E,Middle,13.575065
+E,Hard,31.043844

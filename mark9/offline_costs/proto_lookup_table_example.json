@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "description": "mark9 proto-level lookup table (example)",
+  "purity_threshold": 0.90,
+  "min_support": 5,
+  "port_rules": {
+    "53":    {"proto_hint": "DNS",       "purity": 1.0,    "support": 114708},
+    "443":   {"proto_hint": "TLS",       "purity": 0.991,  "support": 92512},
+    "80":    {"proto_hint": "HTTP",      "purity": 0.967,  "support": 28341},
+    "22":    {"proto_hint": "SSH",       "purity": 0.998,  "support": 4521},
+    "123":   {"proto_hint": "NTP",       "purity": 0.999,  "support": 8120},
+    "27017": {"proto_hint": "MongoDB",   "purity": 0.95,   "support": 312},
+    "21":    {"proto_hint": "FTP_CONTROL", "purity": 0.97, "support": 542}
+  },
+  "prefix_rules": {
+    "8080": {
+      "16":  {"proto_hint": "TLS",  "prefix_len": 1, "purity": 0.94},
+      "47":  {"proto_hint": "HTTP", "prefix_len": 1, "purity": 0.97}
+    }
+  },
+  "proto_cost_prior": {
+    "DNS": 2.103,
+    "NTP": 3.841,
+    "HTTP": 5.492,
+    "TLS": 8.734,
+    "SSH": 12.341,
+    "MongoDB": 14.320,
+    "FTP_CONTROL": 17.279
+  },
+  "default_proto_hint": "UNKNOWN"
+}
