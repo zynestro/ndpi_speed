@@ -1,5 +1,7 @@
 # scripts 目录说明
 
+> 2026-11-17：`benchmarks/`（mark0~mark3 扫描脚本）和 `legacy/` 已移到 `archive/marks-1-to-6/scripts/`。下文对这两个目录的说明保留作参考，路径以新位置为准。
+
 `scripts/` 按用途分成 `setup`、`data`、`benchmarks`、`analysis`、`legacy` 几类。下面按目录说明每个脚本现在的实际功能、典型输入输出，以及适合什么时候用。
 
 ## 目录总览

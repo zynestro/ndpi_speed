@@ -382,7 +382,7 @@ if (ctx->proto_lookup_table) {
 | `mark4/` | ❌ **删**（或与 mark5 一起留） | 单线程对照版，已经被 mark5 完全取代（mark5 就是 mark4 骨架 + profiling）。`output/mark4/` 的 6 个 CSV 也同样被取代 |
 | `mark5/` | ✅ **必须留** | ⭐ 唯一的数据生产者。`output/mark5/` 74 GB 原始数据靠它产生；mark6~9 的离线代价表全部来自它的 Python 训练脚本。**删了之后所有实验数据都变成不可复现的孤儿** |
 | `mark6/` | ⚠️ 可留可删 | 已被 mark7 完全覆盖（mark7 = mark6 + 策略框架 + oracle + 结构化输出）。1.6 MB，很小，建议留作"mark7 从哪来"的参照，或整体归档 |
-| `mark7/` | ✅ **必须留** | 唯一有完整评测结果集的版本（结果在 `archive/globecom-evaluation/`）。5 种可切换策略 + 结构化输出是当前最可信的 baseline |
+| `mark7/` | ✅ **必须留** | 唯一有完整评测结果集的版本（结果在 `evaluation/globecom/`）。5 种可切换策略 + 结构化输出是当前最可信的 baseline |
 | `mark8/` | ✅ **留** | 编译不过，但 ring + EWMA 的代码骨架是重建闭环时唯一可抄的东西。删了就只剩 README 的空话 |
 | `mark9/` | ✅ **留** | v2 查表 + `train_proto_lookup_v2.py` + 已训练出的 `proto_lookup_table.json`（真数据） |
 
@@ -436,9 +436,10 @@ ndpi_speed/
 
 > **实测结果：仓库 191 GB → 126 GB。**
 
-**第 2 步（未执行，需确认）：**
-- ⬜ 删除 `mark1/` ~ `mark4/`（已确认 git 可恢复 + 0625 快照有备份）
-- ⬜ **把 `archive/globecom-evaluation/` 移到 `results/globecom/`** —— 这是全仓唯一的 mark7 实测结果，放在 archive 里很容易在某次清理中误删
+**第 2 步 —— ✅ 已执行 2026-11-17（移动，不删除）：**
+- ✅ `mark1/`~`mark4/`、`mark6/`、`四个Mark架构分析.md` → `archive/marks-1-to-6/`；mark1~3 专用的 `scripts/benchmarks/` 与 `scripts/legacy/` → `archive/marks-1-to-6/scripts/`
+- ✅ `archive/globecom-evaluation/` → `evaluation/globecom/`（与 10 月的 `evaluation/i9/` 放一起；`evaluation/` 仍被 `.gitignore` 排除）
+- 顶层现在只剩在用的 mark5 / mark7 / mark8 / mark9
 - ⬜ 删除 `output/mark4/`、`output/_test/`、`output/legacy/` → 回收 30 MB（相对 74 GB 微不足道，主要是减少干扰）
 
 **第 3 步（建议但非必须）：**

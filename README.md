@@ -15,7 +15,7 @@
 | 了解下一步计划（mark10） | `docs/0906改进prompt.md` |
 | 了解论文故事和实验设计 | `docs/progress_presentation.md` |
 | 查某次实验输出的来源 | `docs/EXPERIMENT_LOG.md` + `scripts/classify_output.py` |
-| 了解早期 mark1~4 的架构 | `四个Mark架构分析.md` |
+| 了解早期 mark1~4 的架构 | `archive/marks-1-to-6/四个Mark架构分析.md` |
 
 ---
 
@@ -24,16 +24,15 @@
 ```
 ndpi_speed/
 ├── docs/           说明性文档（进展、计划、实验日志）
-├── mark1/ ~ mark4/ 并行化探索期（已停用，见下）
 ├── mark5/          ⭐ 数据生产者：协议检测代价 profiling
-├── mark6/          第一个代价感知调度器
 ├── mark7/          ⭐ 当前 baseline：5 种可切换调度策略
 ├── mark8/          闭环 EWMA 反馈（代码骨架可复用）
 ├── mark9/          协议级查表 v2 + 训练脚本
 ├── scripts/        环境配置、流量生成、批量实验、绘图
-├── input/          PCAP traces（52 GB，见下）
+├── evaluation/     调度实验结果（globecom/ = GLOBECOM 论文图数据；i9/ = 10 月 i9 复测）
+├── input/          PCAP traces（62 GB，见下）
 ├── output/mark5/   原始 profiling 数据（74 GB）
-├── archive/        封存内容
+├── archive/        封存内容（marks-1-to-6/ = 已停用的 mark1~4、mark6 及其脚本）
 └── REPO_INVENTORY.md
 ```
 
@@ -81,7 +80,7 @@ ndpi_speed/
 | "mark8 + mark9 待合并" | 字面属实——**mark9 把 mark8 的整套 adaptive 子系统删掉了**（`adaptive` 出现次数 mark7=0 / mark8=72 / mark9=2） |
 | mark6 与 mark7 的 5 份文档 | 逐行 diff 后**只有 `mark6`→`mark7` 字符串替换**，零实质更新 |
 
-另外：**mark7 的真实评测结果不在 `output/` 下**（被 `.gitignore` 排除了），而在 `archive/globecom-evaluation/`。
+另外：**mark7 的真实评测结果不在 `output/` 下**（被 `.gitignore` 排除了），而在 `evaluation/globecom/`（原 `archive/globecom-evaluation/`，2026-11-17 移出）。
 
 ---
 
@@ -97,7 +96,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release && make -j8
 
 `-P` 可选：`rss` / `jsq` / `static_pool` / `oracle` / `ours`（mark8 另有 `adaptive`）。
 
-**构建状态**：mark1~mark7、mark9 均有可用 `build/`。mark8 此前因 `src/main.c` 中的中文弯引号导致语法错误而无法编译，已于 2026-09-18 修复，现在可以正常构建。
+**构建状态**：mark5、mark7、mark9 均有可用 `build/`。mark8 此前因 `src/main.c` 中的中文弯引号导致语法错误而无法编译，已于 2026-09-18 修复，现在可以正常构建。
 
 ---
 
@@ -107,8 +106,8 @@ cmake .. -DCMAKE_BUILD_TYPE=Release && make -j8
 |------|------|------|
 | `output/mark5/time/` | 49 GB | 108 个 run 的计时 profile。论文 Measurement 章节的原始证据 |
 | `output/mark5/hardware/` | 25 GB | 83 个 run 的 PMU 计数器数据（全部 2026-04-17） |
-| `input/` | 52 GB | ⚠️ 主力 trace 在 `input/` **顶层**（`normal_1..13.pcap` 等），`input/normal-pcaps/` 是**空的** |
-| `archive/globecom-evaluation/` | 15 MB | ⭐ **全仓唯一的 mark7 实测结果集**：`final/figure3~7_*.csv` 是论文图的数据源 |
+| `input/` | 62 GB | ⚠️ 主力 trace 在 `input/` **顶层**（`normal_1..13.pcap` 等），`input/normal-pcaps/` 是**空的** |
+| `evaluation/globecom/` | 15 MB | ⭐ **全仓唯一的 mark7 实测结果集**：`final/figure3~7_*.csv` 是论文图的数据源 |
 
 体积大是正常的（单个 `time_flow_profile.csv` 就有 7 GB），不是垃圾。
 
@@ -116,7 +115,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release && make -j8
 
 ## 已停用的版本
 
-`mark1/` ~ `mark4/` 属于并行化探索期，与当前研究问题无关，**已不再维护**。保留源码仅为追溯。mark4 的测量已被 mark5 完全取代。
+`mark1` ~ `mark4` 属于并行化探索期，与当前研究问题无关；`mark6` 已被 mark7 完全包含。这五个目录连同它们专用的 `scripts/benchmarks/`、`scripts/legacy/` 已于 2026-11-17 移到 `archive/marks-1-to-6/`，**不再维护**，保留源码仅为追溯。mark4 的测量已被 mark5 完全取代。
 
 （源码全部在 git 历史中可恢复，另有 `archive/ndpi-speed-0625/` 一份 mark1~mark7 的源码快照。）
 
