@@ -440,7 +440,7 @@ ndpi_speed/
 - ✅ `mark1/`~`mark4/`、`mark6/`、`四个Mark架构分析.md` → `archive/marks-1-to-6/`；mark1~3 专用的 `scripts/benchmarks/` 与 `scripts/legacy/` → `archive/marks-1-to-6/scripts/`
 - ✅ `archive/globecom-evaluation/` → `evaluation/globecom/`（与 10 月的 `evaluation/i9/` 放一起；`evaluation/` 仍被 `.gitignore` 排除）
 - 顶层现在只剩在用的 mark5 / mark7 / mark8 / mark9
-- ⬜ 删除 `output/mark4/`、`output/_test/`、`output/legacy/` → 回收 30 MB（相对 74 GB 微不足道，主要是减少干扰）
+- ✅ 已删除 `output/mark4/`、`output/_test/`、`output/legacy/`（约 30 MB，2026-11-17）
 
 **第 3 步（建议但非必须）：**
 - ✅ mark8 弯引号已修复，`cmake + make` 实测通过
