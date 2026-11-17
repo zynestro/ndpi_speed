@@ -1101,9 +1101,9 @@ int main(int argc, char **argv) {
 
   /* mark8: print adaptive cost table summary if used */
   if (cfg.policy == DISPATCH_POLICY_ADAPTIVE && adaptive_table) {
-    printf(“\nAdaptive Cost Table Summary:\n”);
-    printf(“  %-6s  %-12s  %-12s  %-10s  %-10s\n”,
-           “Proto”, “P_cost_x1000”, “E_cost_x1000”, “Samples_P”, “Samples_E”);
+    printf("\nAdaptive Cost Table Summary:\n");
+    printf("  %-6s  %-12s  %-12s  %-10s  %-10s\n",
+           "Proto", "P_cost_x1000", "E_cost_x1000", "Samples_P", "Samples_E");
     uint32_t printed = 0;
     for (uint32_t p = 0; p < ADAPTIVE_MAX_PROTOCOLS && printed < 30; p++) {
       uint32_t sp = atomic_load_explicit(&adaptive_table->entries[p].sample_count[CORE_TYPE_P],
@@ -1115,16 +1115,16 @@ int main(int argc, char **argv) {
                                          memory_order_relaxed);
       uint32_t ce = atomic_load_explicit(&adaptive_table->entries[p].cost_x1000[CORE_TYPE_E],
                                          memory_order_relaxed);
-      printf(“  %-6u  %-12u  %-12u  %-10u  %-10u\n”, p, cp, ce, sp, se);
+      printf("  %-6u  %-12u  %-12u  %-10u  %-10u\n", p, cp, ce, sp, se);
       printed++;
     }
     if (printed == 0) {
-      printf(“  (no protocols observed)\n”);
+      printf("  (no protocols observed)\n");
     }
     /* Print speed ratio */
     uint32_t ratio = atomic_load_explicit(&adaptive_table->speed_ratio_x1000,
                                           memory_order_relaxed);
-    printf(“  Speed Ratio (E/P): %.3f\n”, (double)ratio / 1000.0);
+    printf("  Speed Ratio (E/P): %.3f\n", (double)ratio / 1000.0);
   }
 
   write_structured_results(&cfg, workers, cfg.num_workers, dispatch_ctx, elapsed,
